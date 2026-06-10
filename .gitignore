@@ -7,3 +7,6 @@ outputs/*.mp3
 outputs/*.flac
 .gradio/
 .env
+server.pid
+server.out.log
+server.err.log

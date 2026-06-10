@@ -1,5 +1,4 @@
 gradio>=5.34.0
-requests>=2.32.0
 pydantic>=2.7.0
 kokoro>=0.9.4
 soundfile>=0.12.1

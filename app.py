@@ -2,14 +2,15 @@ from __future__ import annotations
 
 import json
 import os
+import urllib.error
+import urllib.request
 import wave
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-import requests
 from fastapi import Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from gradio import Server
 from pydantic import BaseModel
@@ -68,9 +69,8 @@ def reader_brain_core(node_type: str, text: str, position: str | None, mode: str
     )
 
     try:
-        response = requests.post(
-            f"{LLAMA_CPP_BASE_URL}/chat/completions",
-            json={
+        body = json.dumps(
+            {
                 "model": LLAMA_CPP_MODEL,
                 "messages": [
                     {
@@ -84,11 +84,16 @@ def reader_brain_core(node_type: str, text: str, position: str | None, mode: str
                 ],
                 "temperature": 0.2,
                 "max_tokens": 180,
-            },
-            timeout=45,
+            }
+        ).encode("utf-8")
+        request = urllib.request.Request(
+            f"{LLAMA_CPP_BASE_URL}/chat/completions",
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST",
         )
-        response.raise_for_status()
-        payload = response.json()
+        with urllib.request.urlopen(request, timeout=45) as response:
+            payload = json.loads(response.read().decode("utf-8"))
         narration = payload["choices"][0]["message"]["content"].strip()
         return {
             "ok": True,
@@ -96,7 +101,7 @@ def reader_brain_core(node_type: str, text: str, position: str | None, mode: str
             "model": LLAMA_CPP_MODEL,
             "narration": narration,
         }
-    except Exception as exc:
+    except (OSError, urllib.error.URLError, KeyError, json.JSONDecodeError) as exc:
         prefix = {
             "heading": "Heading. ",
             "image": "Image. ",
