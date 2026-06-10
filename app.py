@@ -23,6 +23,8 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 
 LLAMA_CPP_BASE_URL = os.getenv("LLAMA_CPP_BASE_URL", "http://localhost:8080/v1")
 LLAMA_CPP_MODEL = os.getenv("LLAMA_CPP_MODEL", "narrator-brain")
+GRADIO_SERVER_NAME = os.getenv("GRADIO_SERVER_NAME", "0.0.0.0")
+GRADIO_SERVER_PORT = int(os.getenv("PORT", os.getenv("GRADIO_SERVER_PORT", "7860")))
 
 app = Server(title="Tiny Narrator")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
@@ -204,11 +206,29 @@ async def health() -> JSONResponse:
         {
             "ok": True,
             "app": "Tiny Narrator",
+            "frontend": "custom Gradio Server HTML/CSS/JS",
+            "llama_cpp_base_url": LLAMA_CPP_BASE_URL,
             "models": {
-                "reader_brain": "nvidia/NVIDIA-Nemotron-3-Nano-4B-GGUF via llama.cpp",
-                "vision": "openbmb/MiniCPM-V-2",
-                "speech": "hexgrad/Kokoro-82M",
-                "image_generation": "black-forest-labs/FLUX.2-klein-4B",
+                "reader_brain": {
+                    "id": "nvidia/NVIDIA-Nemotron-3-Nano-4B-GGUF",
+                    "params": "3.97B",
+                    "runtime": "llama.cpp",
+                },
+                "vision": {
+                    "id": "openbmb/MiniCPM-V-2",
+                    "params": "3B",
+                    "runtime": "Python integration planned",
+                },
+                "speech": {
+                    "id": "hexgrad/Kokoro-82M",
+                    "params": "82M",
+                    "runtime": "Python",
+                },
+                "image_generation": {
+                    "id": "black-forest-labs/FLUX.2-klein-4B",
+                    "params": "4B",
+                    "runtime": "Python integration planned",
+                },
             },
         }
     )
@@ -260,4 +280,4 @@ async def handle_exception(_: Request, exc: Exception) -> JSONResponse:
 
 
 if __name__ == "__main__":
-    app.launch()
+    app.launch(server_name=GRADIO_SERVER_NAME, server_port=GRADIO_SERVER_PORT)

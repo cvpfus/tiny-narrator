@@ -1,3 +1,15 @@
+---
+title: Tiny Narrator
+emoji: 🔊
+colorFrom: teal
+colorTo: yellow
+sdk: gradio
+sdk_version: 6.16.0
+app_file: app.py
+pinned: false
+license: apache-2.0
+---
+
 # Tiny Narrator
 
 Tiny Narrator is a Build Small Hackathon prototype: a custom Gradio Server article app that can switch into a guided screen-reader mode.
@@ -39,6 +51,23 @@ python app.py
 ```
 
 Open the local URL printed by Gradio. The custom frontend calls `/api/reader-brain`, `/api/describe-image`, `/api/speak`, and `/api/generate-image`.
+
+Useful environment variables:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `LLAMA_CPP_BASE_URL` | `http://localhost:8080/v1` | OpenAI-compatible llama.cpp server URL |
+| `LLAMA_CPP_MODEL` | `narrator-brain` | Alias passed to llama.cpp |
+| `GRADIO_SERVER_NAME` | `0.0.0.0` | Bind address for local or Space runtime |
+| `GRADIO_SERVER_PORT` / `PORT` | `7860` | App port |
+
+## Verification
+
+```powershell
+python scripts/verify.py
+```
+
+The verifier checks syntax, static assets, deterministic fallback model paths, and generated speech file behavior.
 
 ## Screen Reader Mode
 

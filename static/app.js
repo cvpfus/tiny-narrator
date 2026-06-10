@@ -28,6 +28,7 @@ const nodes = [...document.querySelectorAll(".speakable")].map((element, index) 
 let enabled = false;
 let currentIndex = -1;
 let playing = false;
+let requestSerial = 0;
 
 function setEnabled(nextValue) {
   enabled = nextValue;
@@ -80,39 +81,54 @@ async function postJson(url, payload) {
 
 async function narrate(index) {
   if (!enabled || !nodes[index]) return;
+  const serial = ++requestSerial;
   setActive(index);
   const node = nodes[index];
   runtimeStatus.textContent = "Thinking";
+  controls.play.disabled = true;
 
-  let sourceText = node.text;
-  if (node.type === "image") {
-    const description = await postJson("/api/describe-image", {
-      image_id: node.imageId,
-      caption: node.text,
+  try {
+    let sourceText = node.text;
+    if (node.type === "image") {
+      const description = await postJson("/api/describe-image", {
+        image_id: node.imageId,
+        caption: node.text,
+      });
+      sourceText = description.alt_text;
+    }
+
+    const result = await postJson("/api/reader-brain", {
+      node_type: node.type,
+      text: sourceText,
+      position: `item ${index + 1} of ${nodes.length}`,
+      mode: "narrate",
     });
-    sourceText = description.alt_text;
-  }
 
-  const result = await postJson("/api/reader-brain", {
-    node_type: node.type,
-    text: sourceText,
-    position: `item ${index + 1} of ${nodes.length}`,
-    mode: "narrate",
-  });
+    if (serial !== requestSerial) return;
 
-  runtimeStatus.textContent = result.runtime;
-  liveNarration.textContent = result.narration;
+    runtimeStatus.textContent = result.runtime;
+    liveNarration.textContent = result.narration;
 
-  const speech = await postJson("/api/speak", {
-    text: result.narration,
-    speed: Number(speedControl.value),
-  });
+    const speech = await postJson("/api/speak", {
+      text: result.narration,
+      speed: Number(speedControl.value),
+    });
 
-  if (speech.audio_url) {
-    audio.src = speech.audio_url;
-    await audio.play().catch(() => {});
-    playing = true;
-    controls.play.textContent = "Pause";
+    if (serial !== requestSerial) return;
+
+    if (speech.audio_url) {
+      audio.src = speech.audio_url;
+      await audio.play().catch(() => {
+        liveNarration.textContent = `${result.narration} Audio is ready. Press Play to hear it.`;
+      });
+      playing = !audio.paused;
+      controls.play.textContent = playing ? "Pause" : "Play";
+    }
+  } catch (error) {
+    runtimeStatus.textContent = "Error";
+    liveNarration.textContent = `Narration failed: ${error.message}`;
+  } finally {
+    controls.play.disabled = false;
   }
 }
 
