@@ -5,6 +5,7 @@ const currentStatus = document.querySelector("#currentStatus");
 const runtimeStatus = document.querySelector("#runtimeStatus");
 const modelStatus = document.querySelector("#modelStatus");
 const imageStatus = document.querySelector("#imageStatus");
+const voiceStatus = document.querySelector("#voiceStatus");
 const liveNarration = document.querySelector("#liveNarration");
 const audio = document.querySelector("#speechAudio");
 const speedControl = document.querySelector("#speedControl");
@@ -37,6 +38,7 @@ let playing = false;
 let requestSerial = 0;
 let transcriptEntries = [];
 let imageDescriptions = new Map();
+let lastSpokenText = "";
 
 function escapeHtml(value) {
   return value.replace(/[&<>"']/g, (char) => ({
@@ -146,8 +148,59 @@ function setActive(index) {
 function stopAudio() {
   audio.pause();
   audio.removeAttribute("src");
+  window.speechSynthesis?.cancel();
   playing = false;
   controls.play.textContent = "Play";
+}
+
+function browserSpeak(text) {
+  if (!("speechSynthesis" in window)) {
+    return false;
+  }
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.rate = Number(speedControl.value);
+  utterance.onend = () => {
+    playing = false;
+    controls.play.textContent = "Play";
+  };
+  window.speechSynthesis.speak(utterance);
+  playing = true;
+  controls.play.textContent = "Pause";
+  return true;
+}
+
+async function speakNarration(text, serial) {
+  lastSpokenText = text;
+  const speech = await postJson("/api/speak", {
+    text,
+    speed: Number(speedControl.value),
+  });
+
+  if (serial !== requestSerial) return;
+
+  if (speech.runtime === "fallback") {
+    const spoke = browserSpeak(text);
+    voiceStatus.textContent = spoke ? "Browser fallback" : "Transcript only";
+    if (!spoke) {
+      liveNarration.textContent = `${text} Audio fallback is unavailable. Transcript is visible.`;
+    }
+    return;
+  }
+
+  if (speech.audio_url) {
+    audio.src = speech.audio_url;
+    await audio.play().catch(() => {
+      const spoke = browserSpeak(text);
+      voiceStatus.textContent = spoke ? "Browser fallback" : "Audio ready";
+      liveNarration.textContent = spoke ? text : `${text} Audio is ready. Press Play to hear it.`;
+    });
+    playing = !audio.paused || window.speechSynthesis?.speaking;
+    controls.play.textContent = playing ? "Pause" : "Play";
+    if (!window.speechSynthesis?.speaking) {
+      voiceStatus.textContent = speech.runtime;
+    }
+  }
 }
 
 async function postJson(url, payload) {
@@ -201,21 +254,7 @@ async function narrate(index) {
       text: result.narration,
     });
 
-    const speech = await postJson("/api/speak", {
-      text: result.narration,
-      speed: Number(speedControl.value),
-    });
-
-    if (serial !== requestSerial) return;
-
-    if (speech.audio_url) {
-      audio.src = speech.audio_url;
-      await audio.play().catch(() => {
-        liveNarration.textContent = `${result.narration} Audio is ready. Press Play to hear it.`;
-      });
-      playing = !audio.paused;
-      controls.play.textContent = playing ? "Pause" : "Play";
-    }
+    await speakNarration(result.narration, serial);
   } catch (error) {
     runtimeStatus.textContent = "Error";
     liveNarration.textContent = `Narration failed: ${error.message}`;
@@ -249,21 +288,7 @@ async function summarizeCurrentSection() {
       text: result.narration,
     });
 
-    const speech = await postJson("/api/speak", {
-      text: result.narration,
-      speed: Number(speedControl.value),
-    });
-
-    if (serial !== requestSerial) return;
-
-    if (speech.audio_url) {
-      audio.src = speech.audio_url;
-      await audio.play().catch(() => {
-        liveNarration.textContent = `${result.narration} Audio is ready. Press Play to hear it.`;
-      });
-      playing = !audio.paused;
-      controls.play.textContent = playing ? "Pause" : "Play";
-    }
+    await speakNarration(result.narration, serial);
   } catch (error) {
     runtimeStatus.textContent = "Error";
     liveNarration.textContent = `Summary failed: ${error.message}`;
@@ -316,12 +341,19 @@ controls.play.addEventListener("click", () => {
   }
   if (playing) {
     audio.pause();
+    window.speechSynthesis?.pause();
     playing = false;
     controls.play.textContent = "Play";
+  } else if (window.speechSynthesis?.paused) {
+    window.speechSynthesis.resume();
+    playing = true;
+    controls.play.textContent = "Pause";
   } else if (audio.src) {
     audio.play();
     playing = true;
     controls.play.textContent = "Pause";
+  } else if (lastSpokenText) {
+    browserSpeak(lastSpokenText);
   } else {
     narrate(currentIndex);
   }

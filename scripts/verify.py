@@ -76,6 +76,7 @@ def verify_routes() -> None:
     assert_true("readerToggle" in home.text, "Home route should include reader toggle")
     assert_true("summaryButton" in home.text, "Home route should include summary control")
     assert_true("imageStatus" in home.text, "Home route should include image status")
+    assert_true("voiceStatus" in home.text, "Home route should include voice status")
     assert_true("transcriptLog" in home.text, "Home route should include transcript log")
 
     health = client.get("/api/health")
