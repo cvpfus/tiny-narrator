@@ -243,6 +243,12 @@ figcaption {
   text-transform: uppercase;
 }
 
+.status-panel h3 {
+  margin: 0;
+  font-size: 0.86rem;
+  text-transform: uppercase;
+}
+
 dl {
   display: grid;
   gap: 12px;
@@ -267,6 +273,55 @@ dd {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
+}
+
+.history-header {
+  display: grid;
+  grid-template-columns: 1fr max-content max-content;
+  gap: 8px;
+  align-items: center;
+  margin-top: 22px;
+}
+
+.history-header button {
+  min-height: 34px;
+  border-radius: 6px;
+  padding: 0 10px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.transcript-log {
+  display: grid;
+  gap: 10px;
+  max-height: 340px;
+  margin: 12px 0 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.transcript-log li {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--surface);
+}
+
+.transcript-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.transcript-text {
+  margin: 6px 0 0;
+  font-size: 0.92rem;
 }
 
 .reader-bar {

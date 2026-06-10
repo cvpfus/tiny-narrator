@@ -3,9 +3,13 @@ const readerBar = document.querySelector(".reader-bar");
 const modeStatus = document.querySelector("#modeStatus");
 const currentStatus = document.querySelector("#currentStatus");
 const runtimeStatus = document.querySelector("#runtimeStatus");
+const modelStatus = document.querySelector("#modelStatus");
 const liveNarration = document.querySelector("#liveNarration");
 const audio = document.querySelector("#speechAudio");
 const speedControl = document.querySelector("#speedControl");
+const transcriptLog = document.querySelector("#transcriptLog");
+const copyTranscriptButton = document.querySelector("#copyTranscriptButton");
+const clearTranscriptButton = document.querySelector("#clearTranscriptButton");
 
 const controls = {
   prev: document.querySelector("#prevButton"),
@@ -29,6 +33,46 @@ let enabled = false;
 let currentIndex = -1;
 let playing = false;
 let requestSerial = 0;
+let transcriptEntries = [];
+
+function escapeHtml(value) {
+  return value.replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  }[char]));
+}
+
+function renderTranscript() {
+  transcriptLog.innerHTML = transcriptEntries
+    .map((entry) => `
+      <li>
+        <div class="transcript-meta">
+          <span>${escapeHtml(entry.type)}</span>
+          <span>${escapeHtml(entry.runtime)}</span>
+        </div>
+        <p class="transcript-text">${escapeHtml(entry.text)}</p>
+      </li>
+    `)
+    .join("");
+}
+
+function addTranscriptEntry(entry) {
+  transcriptEntries = [entry, ...transcriptEntries].slice(0, 12);
+  renderTranscript();
+}
+
+async function loadManifest() {
+  try {
+    const manifest = await postJson("/api/article-manifest");
+    const modelCount = Object.keys(manifest.models || {}).length;
+    modelStatus.textContent = `${modelCount} tiny models, ${manifest.bonus_targets.join(", ")}`;
+  } catch {
+    modelStatus.textContent = "Manifest unavailable";
+  }
+}
 
 function setEnabled(nextValue) {
   enabled = nextValue;
@@ -68,11 +112,12 @@ function stopAudio() {
 }
 
 async function postJson(url, payload) {
-  const response = await fetch(url, {
+  const options = payload === undefined ? {} : {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
-  });
+  };
+  const response = await fetch(url, options);
   if (!response.ok) {
     throw new Error(`${response.status} ${response.statusText}`);
   }
@@ -108,6 +153,11 @@ async function narrate(index) {
 
     runtimeStatus.textContent = result.runtime;
     liveNarration.textContent = result.narration;
+    addTranscriptEntry({
+      type: node.type,
+      runtime: result.runtime,
+      text: result.narration,
+    });
 
     const speech = await postJson("/api/speak", {
       text: result.narration,
@@ -153,6 +203,20 @@ controls.next.addEventListener("click", () => narrate(Math.min(currentIndex + 1,
 controls.prev.addEventListener("click", () => narrate(Math.max(currentIndex - 1, 0)));
 controls.heading.addEventListener("click", () => nextByType("heading"));
 controls.image.addEventListener("click", () => nextByType("image"));
+copyTranscriptButton.addEventListener("click", async () => {
+  const text = transcriptEntries
+    .slice()
+    .reverse()
+    .map((entry) => `[${entry.type} / ${entry.runtime}] ${entry.text}`)
+    .join("\n");
+  await navigator.clipboard?.writeText(text);
+  liveNarration.textContent = text ? "Transcript copied." : "Transcript is empty.";
+});
+clearTranscriptButton.addEventListener("click", () => {
+  transcriptEntries = [];
+  renderTranscript();
+  liveNarration.textContent = "Transcript cleared.";
+});
 controls.play.addEventListener("click", () => {
   if (!enabled) return;
   if (currentIndex < 0) {
@@ -171,6 +235,8 @@ controls.play.addEventListener("click", () => {
     narrate(currentIndex);
   }
 });
+
+loadManifest();
 
 audio.addEventListener("ended", () => {
   playing = false;

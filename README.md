@@ -82,3 +82,5 @@ The frontend builds a reading queue from semantic article nodes. When screen-rea
 - `Esc` stops the current audio.
 
 Each readable node is sent to the reader brain for concise narration, then Kokoro generates speech. If a model is unavailable, the app uses deterministic fallbacks so the demo remains navigable.
+
+The session panel keeps a transcript of recent narration with copy and clear controls, making the spoken path inspectable during demos and useful for the Field Notes write-up.

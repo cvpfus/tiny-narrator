@@ -61,6 +61,7 @@ def verify_routes() -> None:
     assert_true(home.status_code == 200, "Home route should return 200")
     assert_true("Tiny Narrator" in home.text, "Home route should include app title")
     assert_true("readerToggle" in home.text, "Home route should include reader toggle")
+    assert_true("transcriptLog" in home.text, "Home route should include transcript log")
 
     health = client.get("/api/health")
     assert_true(health.status_code == 200, "Health route should return 200")
@@ -69,6 +70,15 @@ def verify_routes() -> None:
     assert_true(
         payload["models"]["reader_brain"]["runtime"] == "llama.cpp",
         "Health route should document llama.cpp reader-brain runtime",
+    )
+
+    manifest = client.get("/api/article-manifest")
+    assert_true(manifest.status_code == 200, "Article manifest route should return 200")
+    manifest_payload = manifest.json()
+    assert_true("Tiny Titan" in manifest_payload["bonus_targets"], "Manifest should include Tiny Titan target")
+    assert_true(
+        manifest_payload["models"]["speech"]["id"] == "hexgrad/Kokoro-82M",
+        "Manifest should document Kokoro speech model",
     )
 
 

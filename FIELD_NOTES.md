@@ -28,6 +28,8 @@ Tiny Narrator is a small-model accessibility article reader. It is not a generic
 
 The frontend creates a reading queue from semantic nodes: headings, paragraphs, quotes, figures, captions, and controls. It speaks one item at a time, keeps keyboard focus synchronized with the active node, and exposes the current narration through an `aria-live` region.
 
+Each narration is also added to a visible transcript log. This gives the demo a second accessible surface: users can review what was spoken, copy the session transcript, or clear it before exploring another part of the article.
+
 Keyboard map:
 
 - `Space`: play or pause.

@@ -26,6 +26,48 @@ LLAMA_CPP_MODEL = os.getenv("LLAMA_CPP_MODEL", "narrator-brain")
 GRADIO_SERVER_NAME = os.getenv("GRADIO_SERVER_NAME", "0.0.0.0")
 GRADIO_SERVER_PORT = int(os.getenv("PORT", os.getenv("GRADIO_SERVER_PORT", "7860")))
 
+MODEL_MANIFEST: dict[str, dict[str, str]] = {
+    "reader_brain": {
+        "id": "nvidia/NVIDIA-Nemotron-3-Nano-4B-GGUF",
+        "params": "3.97B",
+        "runtime": "llama.cpp",
+        "role": "Plans concise narration and reading-order phrasing.",
+    },
+    "vision": {
+        "id": "openbmb/MiniCPM-V-2",
+        "params": "3B",
+        "runtime": "Python integration planned",
+        "role": "Describes images and OCR-like visual details.",
+    },
+    "speech": {
+        "id": "hexgrad/Kokoro-82M",
+        "params": "82M",
+        "runtime": "Python",
+        "role": "Speaks the final narration.",
+    },
+    "image_generation": {
+        "id": "black-forest-labs/FLUX.2-klein-4B",
+        "params": "4B",
+        "runtime": "Python integration planned",
+        "role": "Creates article illustrations.",
+    },
+}
+
+ARTICLE_MANIFEST: dict[str, Any] = {
+    "title": "A tiny model reader that turns articles into guided narration",
+    "reader_controls": [
+        {"key": "Space", "action": "Play or pause"},
+        {"key": "N", "action": "Next item"},
+        {"key": "P", "action": "Previous item"},
+        {"key": "H", "action": "Next heading"},
+        {"key": "I", "action": "Next image"},
+        {"key": "R", "action": "Repeat current item"},
+        {"key": "Esc", "action": "Stop audio"},
+    ],
+    "bonus_targets": ["Tiny Titan", "Llama Champion", "Off-Brand", "Field Notes"],
+    "models": MODEL_MANIFEST,
+}
+
 app = Server(title="Tiny Narrator")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 app.mount("/outputs", StaticFiles(directory=OUTPUT_DIR), name="outputs")
@@ -208,30 +250,14 @@ async def health() -> JSONResponse:
             "app": "Tiny Narrator",
             "frontend": "custom Gradio Server HTML/CSS/JS",
             "llama_cpp_base_url": LLAMA_CPP_BASE_URL,
-            "models": {
-                "reader_brain": {
-                    "id": "nvidia/NVIDIA-Nemotron-3-Nano-4B-GGUF",
-                    "params": "3.97B",
-                    "runtime": "llama.cpp",
-                },
-                "vision": {
-                    "id": "openbmb/MiniCPM-V-2",
-                    "params": "3B",
-                    "runtime": "Python integration planned",
-                },
-                "speech": {
-                    "id": "hexgrad/Kokoro-82M",
-                    "params": "82M",
-                    "runtime": "Python",
-                },
-                "image_generation": {
-                    "id": "black-forest-labs/FLUX.2-klein-4B",
-                    "params": "4B",
-                    "runtime": "Python integration planned",
-                },
-            },
+            "models": MODEL_MANIFEST,
         }
     )
+
+
+@app.get("/api/article-manifest")
+async def article_manifest() -> JSONResponse:
+    return _json({"ok": True, **ARTICLE_MANIFEST})
 
 
 @app.post("/api/reader-brain")
