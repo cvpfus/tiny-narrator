@@ -89,6 +89,7 @@ def verify_routes() -> None:
     assert_true("voiceControl" in home.text, "Home route should include voice control")
     assert_true("speedValue" in home.text, "Home route should include speed value output")
     assert_true("transcriptLog" in home.text, "Home route should include transcript log")
+    assert_true("awardEvidenceList" in home.text, "Home route should include award evidence list")
 
     health = client.get("/api/health")
     assert_true(health.status_code == 200, "Health route should return 200")
@@ -118,6 +119,19 @@ def verify_routes() -> None:
     assert_true(
         len(manifest_payload["reader_settings"]["voices"]) >= 4,
         "Manifest should expose multiple Kokoro voice choices",
+    )
+    assert_true(
+        len(manifest_payload["award_evidence"]) == 4,
+        "Manifest should expose four award evidence items",
+    )
+
+    awards = client.get("/api/award-evidence")
+    assert_true(awards.status_code == 200, "Award evidence route should return 200")
+    award_payload = awards.json()
+    assert_true(award_payload["ok"], "Award evidence payload should be ok")
+    assert_true(
+        {item["id"] for item in award_payload["items"]} == {"tiny-titan", "llama-champion", "off-brand", "field-notes"},
+        "Award evidence route should cover the targeted bonuses",
     )
 
     image_descriptions = client.get("/api/image-descriptions")

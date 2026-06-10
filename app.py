@@ -87,6 +87,33 @@ READER_SETTINGS: dict[str, Any] = {
     "speed": {"min": 0.75, "max": 1.35, "step": 0.05},
 }
 
+AWARD_EVIDENCE: list[dict[str, str]] = [
+    {
+        "id": "tiny-titan",
+        "label": "Tiny Titan",
+        "status": "ready",
+        "evidence": "All planned model roles use models at or below 4B parameters.",
+    },
+    {
+        "id": "llama-champion",
+        "label": "Llama Champion",
+        "status": "ready",
+        "evidence": "The reader-brain path targets a GGUF model through a llama.cpp OpenAI-compatible endpoint.",
+    },
+    {
+        "id": "off-brand",
+        "label": "Off-Brand",
+        "status": "ready",
+        "evidence": "The visible app is custom HTML, CSS, and JavaScript served by Gradio Server.",
+    },
+    {
+        "id": "field-notes",
+        "label": "Field Notes",
+        "status": "ready",
+        "evidence": "The repo records model choices, fallbacks, latency reporting, and accessibility behavior.",
+    },
+]
+
 ARTICLE_MANIFEST: dict[str, Any] = {
     "title": "A tiny model reader that turns articles into guided narration",
     "reader_controls": [
@@ -103,6 +130,7 @@ ARTICLE_MANIFEST: dict[str, Any] = {
     "images": ARTICLE_IMAGES,
     "models": MODEL_MANIFEST,
     "reader_settings": READER_SETTINGS,
+    "award_evidence": AWARD_EVIDENCE,
 }
 
 app = Server(title="Tiny Narrator")
@@ -346,6 +374,11 @@ async def health() -> JSONResponse:
 @app.get("/api/article-manifest")
 async def article_manifest() -> JSONResponse:
     return _json({"ok": True, **ARTICLE_MANIFEST})
+
+
+@app.get("/api/award-evidence")
+async def award_evidence() -> JSONResponse:
+    return _json({"ok": True, "items": AWARD_EVIDENCE})
 
 
 @app.post("/api/reader-brain")

@@ -15,6 +15,7 @@ const speedValue = document.querySelector("#speedValue");
 const transcriptLog = document.querySelector("#transcriptLog");
 const copyTranscriptButton = document.querySelector("#copyTranscriptButton");
 const clearTranscriptButton = document.querySelector("#clearTranscriptButton");
+const awardEvidenceList = document.querySelector("#awardEvidenceList");
 
 const controls = {
   prev: document.querySelector("#prevButton"),
@@ -120,6 +121,33 @@ async function loadManifest() {
     }
   } catch {
     modelStatus.textContent = "Manifest unavailable";
+  }
+}
+
+async function loadAwardEvidence() {
+  try {
+    const payload = await postJson("/api/award-evidence");
+    awardEvidenceList.innerHTML = payload.items
+      .map((item) => `
+        <li>
+          <div class="award-title">
+            <span>${escapeHtml(item.label)}</span>
+            <span class="award-status">${escapeHtml(item.status)}</span>
+          </div>
+          <p class="award-evidence">${escapeHtml(item.evidence)}</p>
+        </li>
+      `)
+      .join("");
+  } catch {
+    awardEvidenceList.innerHTML = `
+      <li>
+        <div class="award-title">
+          <span>Checklist</span>
+          <span class="award-status">offline</span>
+        </div>
+        <p class="award-evidence">Award evidence is unavailable.</p>
+      </li>
+    `;
   }
 }
 
@@ -403,6 +431,7 @@ controls.play.addEventListener("click", () => {
 });
 
 loadManifest();
+loadAwardEvidence();
 loadImageDescriptions();
 updateSpeedValue();
 
