@@ -40,6 +40,7 @@ def verify_core_fallbacks() -> None:
     )
     assert_true(narration["ok"], "Reader-brain fallback did not return ok")
     assert_true("Heading." in narration["narration"], "Reader-brain fallback lost heading prefix")
+    assert_true(isinstance(narration["elapsed_ms"], int), "Reader-brain response should include elapsed_ms")
 
     summary = app.reader_brain_core(
         node_type="section",
@@ -53,18 +54,25 @@ def verify_core_fallbacks() -> None:
     description = app.describe_image_core("model-map", caption=None, prompt=None)
     assert_true(description["ok"], "Image description did not return ok")
     assert_true("small AI models" in description["alt_text"], "Image description fallback changed unexpectedly")
+    assert_true(isinstance(description["elapsed_ms"], int), "Image description should include elapsed_ms")
 
     article_descriptions = app.describe_article_images_core()
     assert_true(article_descriptions["ok"], "Article image descriptions did not return ok")
     assert_true(len(article_descriptions["descriptions"]) == 3, "Article should expose three image descriptions")
+    assert_true(isinstance(article_descriptions["elapsed_ms"], int), "Article image descriptions should include elapsed_ms")
 
     speech = app.speak_core("Tiny Narrator verification.", voice="af_heart", speed=1.0)
     assert_true(speech["ok"], "Speech path did not return ok")
+    assert_true(isinstance(speech["elapsed_ms"], int), "Speech response should include elapsed_ms")
     audio_path = ROOT / speech["audio_url"].lstrip("/")
     assert_true(audio_path.exists(), f"Speech output missing: {audio_path}")
     with wave.open(str(audio_path), "rb") as wav:
         assert_true(wav.getframerate() == 24000, "Speech output should be 24 kHz")
         assert_true(wav.getnchannels() == 1, "Speech output should be mono")
+
+    generated = app.generate_image_core("Tiny accessibility article image.", seed=3)
+    assert_true(generated["ok"], "Image generation placeholder should return ok")
+    assert_true(isinstance(generated["elapsed_ms"], int), "Image generation should include elapsed_ms")
 
 
 def verify_routes() -> None:
@@ -77,6 +85,7 @@ def verify_routes() -> None:
     assert_true("summaryButton" in home.text, "Home route should include summary control")
     assert_true("imageStatus" in home.text, "Home route should include image status")
     assert_true("voiceStatus" in home.text, "Home route should include voice status")
+    assert_true("latencyStatus" in home.text, "Home route should include latency status")
     assert_true("voiceControl" in home.text, "Home route should include voice control")
     assert_true("speedValue" in home.text, "Home route should include speed value output")
     assert_true("transcriptLog" in home.text, "Home route should include transcript log")

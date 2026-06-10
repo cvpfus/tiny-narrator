@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 import urllib.error
 import urllib.request
 import wave
@@ -137,6 +138,10 @@ def _json(data: dict[str, Any], status_code: int = 200) -> JSONResponse:
     return JSONResponse(data, status_code=status_code)
 
 
+def _elapsed_ms(start: float) -> int:
+    return round((time.perf_counter() - start) * 1000)
+
+
 def _compact_text(text: str, limit: int = 220) -> str:
     normalized = " ".join(text.split())
     if len(normalized) <= limit:
@@ -145,6 +150,7 @@ def _compact_text(text: str, limit: int = 220) -> str:
 
 
 def reader_brain_core(node_type: str, text: str, position: str | None, mode: str) -> dict[str, Any]:
+    start = time.perf_counter()
     if mode == "summarize":
         prompt = (
             "Summarize this article section for screen-reader navigation.\n"
@@ -197,6 +203,7 @@ def reader_brain_core(node_type: str, text: str, position: str | None, mode: str
             "runtime": "llama.cpp",
             "model": LLAMA_CPP_MODEL,
             "narration": narration,
+            "elapsed_ms": _elapsed_ms(start),
         }
     except (OSError, urllib.error.URLError, KeyError, json.JSONDecodeError) as exc:
         prefix = {
@@ -213,10 +220,12 @@ def reader_brain_core(node_type: str, text: str, position: str | None, mode: str
             "model": "rule-based local fallback",
             "warning": f"llama.cpp unavailable: {exc.__class__.__name__}",
             "narration": f"{prefix}{_compact_text(text)}".strip(),
+            "elapsed_ms": _elapsed_ms(start),
         }
 
 
 def describe_image_core(image_id: str, caption: str | None, prompt: str | None) -> dict[str, Any]:
+    start = time.perf_counter()
     # The first committed slice keeps the API stable while the MiniCPM-V runtime lands next.
     # The frontend passes deterministic image ids so cached descriptions can replace this later.
     descriptions = {
@@ -241,10 +250,12 @@ def describe_image_core(image_id: str, caption: str | None, prompt: str | None) 
         "runtime": "MiniCPM-V placeholder",
         "model": "OpenBMB MiniCPM-V-2",
         "alt_text": alt_text,
+        "elapsed_ms": _elapsed_ms(start),
     }
 
 
 def describe_article_images_core() -> dict[str, Any]:
+    start = time.perf_counter()
     descriptions = []
     for image in ARTICLE_IMAGES:
         description = describe_image_core(
@@ -258,6 +269,7 @@ def describe_article_images_core() -> dict[str, Any]:
         "runtime": "MiniCPM-V placeholder",
         "model": "OpenBMB MiniCPM-V-2",
         "descriptions": descriptions,
+        "elapsed_ms": _elapsed_ms(start),
     }
 
 
@@ -271,6 +283,7 @@ def _silent_wav(path: Path, seconds: float = 0.35, sample_rate: int = 24000) -> 
 
 
 def speak_core(text: str, voice: str, speed: float) -> dict[str, Any]:
+    start = time.perf_counter()
     try:
         from kokoro import KPipeline
         import soundfile as sf
@@ -295,10 +308,12 @@ def speak_core(text: str, voice: str, speed: float) -> dict[str, Any]:
         "warning": warning,
         "audio_url": f"/outputs/{output_path.name}",
         "transcript": text,
+        "elapsed_ms": _elapsed_ms(start),
     }
 
 
 def generate_image_core(prompt: str, seed: int | None) -> dict[str, Any]:
+    start = time.perf_counter()
     return {
         "ok": True,
         "runtime": "placeholder",
@@ -306,6 +321,7 @@ def generate_image_core(prompt: str, seed: int | None) -> dict[str, Any]:
         "image_url": f"/static/generated/{'field-notes.svg' if seed == 3 else 'model-map.svg'}",
         "prompt": prompt,
         "seed": seed,
+        "elapsed_ms": _elapsed_ms(start),
     }
 
 

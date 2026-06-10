@@ -6,6 +6,7 @@ const runtimeStatus = document.querySelector("#runtimeStatus");
 const modelStatus = document.querySelector("#modelStatus");
 const imageStatus = document.querySelector("#imageStatus");
 const voiceStatus = document.querySelector("#voiceStatus");
+const latencyStatus = document.querySelector("#latencyStatus");
 const liveNarration = document.querySelector("#liveNarration");
 const audio = document.querySelector("#speechAudio");
 const voiceControl = document.querySelector("#voiceControl");
@@ -46,6 +47,13 @@ function updateSpeedValue() {
   speedValue.textContent = `${Number(speedControl.value).toFixed(2)}x`;
 }
 
+function formatElapsed(ms) {
+  if (!Number.isFinite(ms)) {
+    return "n/a";
+  }
+  return ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(2)} s`;
+}
+
 function escapeHtml(value) {
   return value.replace(/[&<>"']/g, (char) => ({
     "&": "&amp;",
@@ -61,7 +69,7 @@ function renderTranscript() {
     .map((entry) => `
       <li>
         <div class="transcript-meta">
-          <span>${escapeHtml(entry.type)}</span>
+          <span>${escapeHtml(entry.type)} (${escapeHtml(formatElapsed(entry.elapsedMs))})</span>
           <span>${escapeHtml(entry.runtime)}</span>
         </div>
         <p class="transcript-text">${escapeHtml(entry.text)}</p>
@@ -207,7 +215,7 @@ async function speakNarration(text, serial) {
     if (!spoke) {
       liveNarration.textContent = `${text} Audio fallback is unavailable. Transcript is visible.`;
     }
-    return;
+    return speech;
   }
 
   if (speech.audio_url) {
@@ -223,6 +231,7 @@ async function speakNarration(text, serial) {
       voiceStatus.textContent = speech.runtime;
     }
   }
+  return speech;
 }
 
 async function postJson(url, payload) {
@@ -270,13 +279,16 @@ async function narrate(index) {
 
     runtimeStatus.textContent = result.runtime;
     liveNarration.textContent = result.narration;
+
+    const speech = await speakNarration(result.narration, serial);
+    const elapsedMs = (result.elapsed_ms || 0) + (speech?.elapsed_ms || 0);
+    latencyStatus.textContent = formatElapsed(elapsedMs);
     addTranscriptEntry({
       type: node.type,
-      runtime: result.runtime,
+      runtime: `${result.runtime}/${speech?.runtime || "voice"}`,
       text: result.narration,
+      elapsedMs,
     });
-
-    await speakNarration(result.narration, serial);
   } catch (error) {
     runtimeStatus.textContent = "Error";
     liveNarration.textContent = `Narration failed: ${error.message}`;
@@ -304,13 +316,16 @@ async function summarizeCurrentSection() {
 
     runtimeStatus.textContent = result.runtime;
     liveNarration.textContent = result.narration;
+
+    const speech = await speakNarration(result.narration, serial);
+    const elapsedMs = (result.elapsed_ms || 0) + (speech?.elapsed_ms || 0);
+    latencyStatus.textContent = formatElapsed(elapsedMs);
     addTranscriptEntry({
       type: "summary",
-      runtime: result.runtime,
+      runtime: `${result.runtime}/${speech?.runtime || "voice"}`,
       text: result.narration,
+      elapsedMs,
     });
-
-    await speakNarration(result.narration, serial);
   } catch (error) {
     runtimeStatus.textContent = "Error";
     liveNarration.textContent = `Summary failed: ${error.message}`;
