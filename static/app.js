@@ -4,6 +4,7 @@ const modeStatus = document.querySelector("#modeStatus");
 const currentStatus = document.querySelector("#currentStatus");
 const runtimeStatus = document.querySelector("#runtimeStatus");
 const modelStatus = document.querySelector("#modelStatus");
+const imageStatus = document.querySelector("#imageStatus");
 const liveNarration = document.querySelector("#liveNarration");
 const audio = document.querySelector("#speechAudio");
 const speedControl = document.querySelector("#speedControl");
@@ -35,6 +36,7 @@ let currentIndex = -1;
 let playing = false;
 let requestSerial = 0;
 let transcriptEntries = [];
+let imageDescriptions = new Map();
 
 function escapeHtml(value) {
   return value.replace(/[&<>"']/g, (char) => ({
@@ -87,6 +89,27 @@ async function loadManifest() {
     modelStatus.textContent = `${modelCount} tiny models, ${manifest.bonus_targets.join(", ")}`;
   } catch {
     modelStatus.textContent = "Manifest unavailable";
+  }
+}
+
+async function loadImageDescriptions() {
+  imageStatus.textContent = "Describing";
+  try {
+    const payload = await postJson("/api/image-descriptions");
+    imageDescriptions = new Map(
+      payload.descriptions.map((description) => [description.id, description]),
+    );
+    for (const node of nodes.filter((item) => item.type === "image")) {
+      const description = imageDescriptions.get(node.imageId);
+      const image = node.element.querySelector("img");
+      if (description?.alt_text && image) {
+        image.alt = description.alt_text;
+        node.element.dataset.altReady = "true";
+      }
+    }
+    imageStatus.textContent = `${imageDescriptions.size} ready`;
+  } catch {
+    imageStatus.textContent = "Fallback on demand";
   }
 }
 
@@ -151,10 +174,13 @@ async function narrate(index) {
   try {
     let sourceText = node.text;
     if (node.type === "image") {
-      const description = await postJson("/api/describe-image", {
-        image_id: node.imageId,
-        caption: node.text,
-      });
+      let description = imageDescriptions.get(node.imageId);
+      if (!description) {
+        description = await postJson("/api/describe-image", {
+          image_id: node.imageId,
+          caption: node.text,
+        });
+      }
       sourceText = description.alt_text;
     }
 
@@ -302,6 +328,7 @@ controls.play.addEventListener("click", () => {
 });
 
 loadManifest();
+loadImageDescriptions();
 
 audio.addEventListener("ended", () => {
   playing = false;

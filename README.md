@@ -50,7 +50,7 @@ Start the app:
 python app.py
 ```
 
-Open the local URL printed by Gradio. The custom frontend calls `/api/reader-brain`, `/api/describe-image`, `/api/speak`, and `/api/generate-image`.
+Open the local URL printed by Gradio. The custom frontend calls `/api/reader-brain`, `/api/image-descriptions`, `/api/describe-image`, `/api/speak`, and `/api/generate-image`.
 
 Useful environment variables:
 
@@ -85,3 +85,5 @@ The frontend builds a reading queue from semantic article nodes. When screen-rea
 Each readable node is sent to the reader brain for concise narration, then Kokoro generates speech. If a model is unavailable, the app uses deterministic fallbacks so the demo remains navigable.
 
 The session panel keeps a transcript of recent narration with copy and clear controls, making the spoken path inspectable during demos and useful for the Field Notes write-up.
+
+Image descriptions are preloaded into a local cache and written into the page's real `img alt` attributes. When the planned MiniCPM-V runtime is unavailable, deterministic alt-text fallbacks keep the screen-reader path usable.

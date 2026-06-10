@@ -53,6 +53,27 @@ MODEL_MANIFEST: dict[str, dict[str, str]] = {
     },
 }
 
+ARTICLE_IMAGES: list[dict[str, str]] = [
+    {
+        "id": "desk-reader",
+        "asset_url": "/static/generated/desk-reader.svg",
+        "caption": "The article view doubles as the demo surface, so every feature has a real reading task.",
+        "prompt": "Accessibility article reader with highlighted paragraph and narration controls.",
+    },
+    {
+        "id": "model-map",
+        "asset_url": "/static/generated/model-map.svg",
+        "caption": "Each model stays at or below four billion parameters for Tiny Titan eligibility.",
+        "prompt": "Diagram of four small AI models working together in an accessibility reader.",
+    },
+    {
+        "id": "field-notes",
+        "asset_url": "/static/generated/field-notes.svg",
+        "caption": "Field notes document the choices behind the screen-reader behavior.",
+        "prompt": "Notebook page with model sizes, keyboard controls, and accessibility checks.",
+    },
+]
+
 ARTICLE_MANIFEST: dict[str, Any] = {
     "title": "A tiny model reader that turns articles into guided narration",
     "reader_controls": [
@@ -66,6 +87,7 @@ ARTICLE_MANIFEST: dict[str, Any] = {
         {"key": "Esc", "action": "Stop audio"},
     ],
     "bonus_targets": ["Tiny Titan", "Llama Champion", "Off-Brand", "Field Notes"],
+    "images": ARTICLE_IMAGES,
     "models": MODEL_MANIFEST,
 }
 
@@ -209,6 +231,23 @@ def describe_image_core(image_id: str, caption: str | None, prompt: str | None) 
     }
 
 
+def describe_article_images_core() -> dict[str, Any]:
+    descriptions = []
+    for image in ARTICLE_IMAGES:
+        description = describe_image_core(
+            image["id"],
+            caption=image.get("caption"),
+            prompt=image.get("prompt"),
+        )
+        descriptions.append({**image, **description})
+    return {
+        "ok": True,
+        "runtime": "MiniCPM-V placeholder",
+        "model": "OpenBMB MiniCPM-V-2",
+        "descriptions": descriptions,
+    }
+
+
 def _silent_wav(path: Path, seconds: float = 0.35, sample_rate: int = 24000) -> None:
     frames = int(seconds * sample_rate)
     with wave.open(str(path), "wb") as wav:
@@ -290,6 +329,11 @@ async def describe_image_endpoint(payload: ImageDescriptionRequest) -> JSONRespo
     return _json(describe_image_core(payload.image_id, payload.caption, payload.prompt))
 
 
+@app.get("/api/image-descriptions")
+async def image_descriptions_endpoint() -> JSONResponse:
+    return _json(describe_article_images_core())
+
+
 @app.post("/api/speak")
 async def speak_endpoint(payload: SpeechRequest) -> JSONResponse:
     return _json(speak_core(payload.text, payload.voice, payload.speed))
@@ -308,6 +352,11 @@ def reader_brain_api(node_type: str, text: str, position: str = "", mode: str = 
 @app.api(name="describe_image")
 def describe_image_api(image_id: str, caption: str = "", prompt: str = "") -> str:
     return json.dumps(describe_image_core(image_id, caption, prompt))
+
+
+@app.api(name="describe_article_images")
+def describe_article_images_api() -> str:
+    return json.dumps(describe_article_images_core())
 
 
 @app.api(name="speak")

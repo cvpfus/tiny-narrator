@@ -54,6 +54,10 @@ def verify_core_fallbacks() -> None:
     assert_true(description["ok"], "Image description did not return ok")
     assert_true("small AI models" in description["alt_text"], "Image description fallback changed unexpectedly")
 
+    article_descriptions = app.describe_article_images_core()
+    assert_true(article_descriptions["ok"], "Article image descriptions did not return ok")
+    assert_true(len(article_descriptions["descriptions"]) == 3, "Article should expose three image descriptions")
+
     speech = app.speak_core("Tiny Narrator verification.", voice="af_heart", speed=1.0)
     assert_true(speech["ok"], "Speech path did not return ok")
     audio_path = ROOT / speech["audio_url"].lstrip("/")
@@ -71,6 +75,7 @@ def verify_routes() -> None:
     assert_true("Tiny Narrator" in home.text, "Home route should include app title")
     assert_true("readerToggle" in home.text, "Home route should include reader toggle")
     assert_true("summaryButton" in home.text, "Home route should include summary control")
+    assert_true("imageStatus" in home.text, "Home route should include image status")
     assert_true("transcriptLog" in home.text, "Home route should include transcript log")
 
     health = client.get("/api/health")
@@ -93,6 +98,15 @@ def verify_routes() -> None:
     assert_true(
         manifest_payload["models"]["speech"]["id"] == "hexgrad/Kokoro-82M",
         "Manifest should document Kokoro speech model",
+    )
+
+    image_descriptions = client.get("/api/image-descriptions")
+    assert_true(image_descriptions.status_code == 200, "Image descriptions route should return 200")
+    image_payload = image_descriptions.json()
+    assert_true(image_payload["model"] == "OpenBMB MiniCPM-V-2", "Image route should document MiniCPM-V model")
+    assert_true(
+        {item["id"] for item in image_payload["descriptions"]} == {"desk-reader", "model-map", "field-notes"},
+        "Image route should describe all article images",
     )
 
 

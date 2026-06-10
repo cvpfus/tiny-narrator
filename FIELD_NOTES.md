@@ -44,3 +44,5 @@ Keyboard map:
 ## Fallback Strategy
 
 Live accessibility demos need dependable behavior. If llama.cpp is not available, the app uses deterministic local narration prefixes. If Kokoro is not installed or cannot load a voice, the app returns a short silent WAV while keeping the transcript visible. If the VLM integration is unavailable, image ids map to cached alt text.
+
+The app preloads image descriptions through `/api/image-descriptions`, caches them in the frontend, and writes the descriptions back into each image's `alt` attribute. That keeps the visible article, transcript, and spoken image narration aligned.
