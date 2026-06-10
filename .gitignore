@@ -1,0 +1,9 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+outputs/*.wav
+outputs/*.mp3
+outputs/*.flac
+.gradio/
+.env

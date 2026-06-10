@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tiny Narrator</title>
+    <link rel="stylesheet" href="/static/app.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#article" aria-label="Tiny Narrator home">
+        <span class="brand-mark" aria-hidden="true">TN</span>
+        <span>Tiny Narrator</span>
+      </a>
+      <nav class="topnav" aria-label="Article sections">
+        <a href="#why">Why</a>
+        <a href="#models">Models</a>
+        <a href="#notes">Field Notes</a>
+      </nav>
+      <button id="readerToggle" class="reader-toggle" type="button" aria-pressed="false">
+        <span class="toggle-dot" aria-hidden="true"></span>
+        Screen reader off
+      </button>
+    </header>
+
+    <main id="article" class="article-shell">
+      <article class="article" aria-labelledby="articleTitle">
+        <p class="kicker speakable" data-reader-type="paragraph">Build Small Hackathon concept</p>
+        <h1 id="articleTitle" class="speakable" data-reader-type="heading">
+          A tiny model reader that turns articles into guided narration
+        </h1>
+        <p class="dek speakable" data-reader-type="paragraph">
+          Tiny Narrator is an accessibility-first article experience. It can describe generated images,
+          build a reading path, and speak each part of the page with a lightweight local voice.
+        </p>
+
+        <figure class="hero-figure speakable" data-reader-type="image" data-image-id="desk-reader">
+          <img src="/static/generated/desk-reader.svg" alt="" />
+          <figcaption>
+            The article view doubles as the demo surface, so every feature has a real reading task.
+          </figcaption>
+        </figure>
+
+        <section id="why" aria-labelledby="whyTitle">
+          <h2 id="whyTitle" class="speakable" data-reader-type="heading">Why it belongs in a tiny-model hackathon</h2>
+          <p class="speakable" data-reader-type="paragraph">
+            Accessibility tools should feel immediate, private, and personal. Small models help because they
+            can run closer to the reader, keep latency low, and make the experience easier to inspect.
+          </p>
+          <blockquote class="speakable" data-reader-type="quote">
+            The goal is not to read the whole page at the user. The goal is to make the page navigable by sound.
+          </blockquote>
+        </section>
+
+        <section id="models" aria-labelledby="modelsTitle">
+          <h2 id="modelsTitle" class="speakable" data-reader-type="heading">The model map</h2>
+          <p class="speakable" data-reader-type="paragraph">
+            The reader brain runs through llama.cpp, the vision model writes practical alt text, Kokoro speaks
+            the final narration, and a four-billion-parameter image model creates article illustrations.
+          </p>
+          <figure class="inline-figure speakable" data-reader-type="image" data-image-id="model-map">
+            <img src="/static/generated/model-map.svg" alt="" />
+            <figcaption>Each model stays at or below four billion parameters for Tiny Titan eligibility.</figcaption>
+          </figure>
+        </section>
+
+        <section id="notes" aria-labelledby="notesTitle">
+          <h2 id="notesTitle" class="speakable" data-reader-type="heading">Field notes as a feature</h2>
+          <p class="speakable" data-reader-type="paragraph">
+            The build report will show parameter counts, latency notes, keyboard decisions, and where the app
+            uses deterministic fallbacks so the accessibility layer remains dependable during a live demo.
+          </p>
+          <figure class="inline-figure speakable" data-reader-type="image" data-image-id="field-notes">
+            <img src="/static/generated/field-notes.svg" alt="" />
+            <figcaption>Field notes document the choices behind the screen-reader behavior.</figcaption>
+          </figure>
+        </section>
+      </article>
+
+      <aside class="status-panel" aria-label="Tiny Narrator status">
+        <h2>Session</h2>
+        <dl>
+          <div>
+            <dt>Mode</dt>
+            <dd id="modeStatus">Reader off</dd>
+          </div>
+          <div>
+            <dt>Current</dt>
+            <dd id="currentStatus">No item selected</dd>
+          </div>
+          <div>
+            <dt>Runtime</dt>
+            <dd id="runtimeStatus">Waiting</dd>
+          </div>
+        </dl>
+        <p id="liveNarration" class="live-narration" aria-live="polite">
+          Turn on screen reader mode to begin.
+        </p>
+      </aside>
+    </main>
+
+    <section class="reader-bar" aria-label="Screen reader controls" hidden>
+      <button id="prevButton" type="button" title="Previous item">Prev</button>
+      <button id="playButton" type="button" title="Play or pause">Play</button>
+      <button id="nextButton" type="button" title="Next item">Next</button>
+      <button id="headingButton" type="button" title="Next heading">Heading</button>
+      <button id="imageButton" type="button" title="Next image">Image</button>
+      <label>
+        Speed
+        <input id="speedControl" type="range" min="0.75" max="1.35" value="1" step="0.05" />
+      </label>
+      <audio id="speechAudio"></audio>
+    </section>
+
+    <script src="/static/app.js" type="module"></script>
+  </body>
+</html>

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-label="Generated notebook page with field notes">
+  <rect width="1200" height="675" fill="#f6f0df"/>
+  <rect x="260" y="64" width="680" height="548" rx="10" fill="#fffdf6" stroke="#d8d3ca" stroke-width="5"/>
+  <line x1="365" y1="64" x2="365" y2="612" stroke="#c5452c" stroke-width="4"/>
+  <g stroke="#b8d6d0" stroke-width="3">
+    <line x1="305" y1="150" x2="895" y2="150"/>
+    <line x1="305" y1="215" x2="895" y2="215"/>
+    <line x1="305" y1="280" x2="895" y2="280"/>
+    <line x1="305" y1="345" x2="895" y2="345"/>
+    <line x1="305" y1="410" x2="895" y2="410"/>
+    <line x1="305" y1="475" x2="895" y2="475"/>
+    <line x1="305" y1="540" x2="895" y2="540"/>
+  </g>
+  <g font-family="Arial, sans-serif" fill="#202124">
+    <text x="410" y="122" font-size="42" font-weight="700">Field Notes</text>
+    <text x="410" y="196" font-size="28">Tiny Titan: every model <= 4B</text>
+    <text x="410" y="261" font-size="28">Llama Champion: GGUF reader brain</text>
+    <text x="410" y="326" font-size="28">Off-Brand: custom Gradio Server UI</text>
+    <text x="410" y="391" font-size="28">Accessibility: keyboard-first narration</text>
+    <text x="410" y="456" font-size="28">Fallbacks: dependable live demo path</text>
+  </g>
+  <circle cx="815" cy="104" r="34" fill="#f4d35e"/>
+</svg>

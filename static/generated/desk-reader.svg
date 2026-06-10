@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-label="Generated illustration of an accessibility article reader">
+  <rect width="1200" height="675" fill="#f1eee7"/>
+  <rect x="95" y="98" width="1010" height="472" rx="18" fill="#ffffff" stroke="#d8d3ca" stroke-width="6"/>
+  <rect x="151" y="152" width="430" height="320" rx="12" fill="#202124"/>
+  <rect x="190" y="192" width="350" height="34" rx="4" fill="#f8f4e8"/>
+  <rect x="190" y="255" width="300" height="20" rx="4" fill="#75b7ad"/>
+  <rect x="190" y="298" width="270" height="20" rx="4" fill="#f4d35e"/>
+  <rect x="190" y="341" width="330" height="20" rx="4" fill="#f8f4e8"/>
+  <circle cx="780" cy="256" r="88" fill="#c5452c"/>
+  <rect x="692" y="358" width="176" height="126" rx="54" fill="#1f6f68"/>
+  <path d="M635 536c54-63 234-62 288 0" fill="none" stroke="#202124" stroke-width="18" stroke-linecap="round"/>
+  <rect x="654" y="160" width="252" height="54" rx="27" fill="#f4d35e"/>
+  <circle cx="695" cy="187" r="12" fill="#202124"/>
+  <rect x="725" y="178" width="132" height="18" rx="9" fill="#202124"/>
+</svg>
