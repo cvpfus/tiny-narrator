@@ -95,3 +95,5 @@ The reader bar exposes Kokoro voice selection and speaking speed controls. Defau
 Reader-brain, image-description, speech, and image-generation responses include `elapsed_ms`. The session panel and transcript show recent latency so the Field Notes can discuss responsiveness with concrete numbers.
 
 The session panel also renders a manifest-backed demo checklist for Tiny Titan, Llama Champion, Off-Brand, and Field Notes evidence.
+
+`/api/runtime-status` performs a short readiness check for llama.cpp and local speech dependencies, then reports which fallback paths are ready for a live demo.

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import time
@@ -168,6 +169,64 @@ def _json(data: dict[str, Any], status_code: int = 200) -> JSONResponse:
 
 def _elapsed_ms(start: float) -> int:
     return round((time.perf_counter() - start) * 1000)
+
+
+def _runtime_status_core() -> dict[str, Any]:
+    start = time.perf_counter()
+    llama_start = time.perf_counter()
+    llama_status: dict[str, Any]
+    try:
+        request = urllib.request.Request(f"{LLAMA_CPP_BASE_URL}/models", method="GET")
+        with urllib.request.urlopen(request, timeout=1.5) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        model_ids = [item.get("id", "") for item in payload.get("data", []) if isinstance(item, dict)]
+        llama_status = {
+            "available": True,
+            "status": "online",
+            "base_url": LLAMA_CPP_BASE_URL,
+            "model": LLAMA_CPP_MODEL,
+            "models": model_ids,
+            "elapsed_ms": _elapsed_ms(llama_start),
+        }
+    except (OSError, urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+        llama_status = {
+            "available": False,
+            "status": "fallback-ready",
+            "base_url": LLAMA_CPP_BASE_URL,
+            "model": LLAMA_CPP_MODEL,
+            "fallback": "rule-based local narration",
+            "warning": exc.__class__.__name__,
+            "elapsed_ms": _elapsed_ms(llama_start),
+        }
+
+    kokoro_available = importlib.util.find_spec("kokoro") is not None
+    soundfile_available = importlib.util.find_spec("soundfile") is not None
+
+    return {
+        "ok": True,
+        "reader_brain": llama_status,
+        "vision": {
+            "available": False,
+            "status": "fallback-ready",
+            "model": "OpenBMB MiniCPM-V-2",
+            "fallback": "cached deterministic alt text",
+        },
+        "speech": {
+            "available": kokoro_available and soundfile_available,
+            "status": "online" if kokoro_available and soundfile_available else "fallback-ready",
+            "model": "hexgrad/Kokoro-82M",
+            "kokoro_installed": kokoro_available,
+            "soundfile_installed": soundfile_available,
+            "fallback": "browser speech plus transcript",
+        },
+        "image_generation": {
+            "available": False,
+            "status": "placeholder-ready",
+            "model": "black-forest-labs/FLUX.2-klein-4B",
+            "fallback": "bundled generated article assets",
+        },
+        "elapsed_ms": _elapsed_ms(start),
+    }
 
 
 def _compact_text(text: str, limit: int = 220) -> str:
@@ -379,6 +438,11 @@ async def article_manifest() -> JSONResponse:
 @app.get("/api/award-evidence")
 async def award_evidence() -> JSONResponse:
     return _json({"ok": True, "items": AWARD_EVIDENCE})
+
+
+@app.get("/api/runtime-status")
+async def runtime_status() -> JSONResponse:
+    return _json(_runtime_status_core())
 
 
 @app.post("/api/reader-brain")

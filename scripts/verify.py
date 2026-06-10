@@ -84,6 +84,7 @@ def verify_routes() -> None:
     assert_true("readerToggle" in home.text, "Home route should include reader toggle")
     assert_true("summaryButton" in home.text, "Home route should include summary control")
     assert_true("imageStatus" in home.text, "Home route should include image status")
+    assert_true("readinessStatus" in home.text, "Home route should include readiness status")
     assert_true("voiceStatus" in home.text, "Home route should include voice status")
     assert_true("latencyStatus" in home.text, "Home route should include latency status")
     assert_true("voiceControl" in home.text, "Home route should include voice control")
@@ -132,6 +133,17 @@ def verify_routes() -> None:
     assert_true(
         {item["id"] for item in award_payload["items"]} == {"tiny-titan", "llama-champion", "off-brand", "field-notes"},
         "Award evidence route should cover the targeted bonuses",
+    )
+
+    runtime = client.get("/api/runtime-status")
+    assert_true(runtime.status_code == 200, "Runtime status route should return 200")
+    runtime_payload = runtime.json()
+    assert_true(runtime_payload["ok"], "Runtime status payload should be ok")
+    assert_true("reader_brain" in runtime_payload, "Runtime status should include reader brain status")
+    assert_true("speech" in runtime_payload, "Runtime status should include speech status")
+    assert_true(
+        runtime_payload["reader_brain"]["status"] in {"online", "fallback-ready"},
+        "Reader brain status should be online or fallback-ready",
     )
 
     image_descriptions = client.get("/api/image-descriptions")

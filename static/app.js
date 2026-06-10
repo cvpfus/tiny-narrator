@@ -4,6 +4,7 @@ const modeStatus = document.querySelector("#modeStatus");
 const currentStatus = document.querySelector("#currentStatus");
 const runtimeStatus = document.querySelector("#runtimeStatus");
 const modelStatus = document.querySelector("#modelStatus");
+const readinessStatus = document.querySelector("#readinessStatus");
 const imageStatus = document.querySelector("#imageStatus");
 const voiceStatus = document.querySelector("#voiceStatus");
 const latencyStatus = document.querySelector("#latencyStatus");
@@ -148,6 +149,19 @@ async function loadAwardEvidence() {
         <p class="award-evidence">Award evidence is unavailable.</p>
       </li>
     `;
+  }
+}
+
+async function loadRuntimeStatus() {
+  try {
+    const payload = await postJson("/api/runtime-status");
+    const brain = payload.reader_brain;
+    const speech = payload.speech;
+    const brainLabel = brain.available ? "llama.cpp online" : "llama.cpp fallback";
+    const speechLabel = speech.available ? "Kokoro online" : "voice fallback";
+    readinessStatus.textContent = `${brainLabel}, ${speechLabel}`;
+  } catch {
+    readinessStatus.textContent = "Fallback ready";
   }
 }
 
@@ -432,6 +446,7 @@ controls.play.addEventListener("click", () => {
 
 loadManifest();
 loadAwardEvidence();
+loadRuntimeStatus();
 loadImageDescriptions();
 updateSpeedValue();
 

@@ -54,3 +54,5 @@ Reader settings are manifest-backed: the app exposes known Kokoro voices and spe
 Every model-facing backend path reports `elapsed_ms`. The frontend surfaces the latest end-to-end reader latency and stores per-item timing in the transcript, giving the build report concrete evidence for the small-model responsiveness claim.
 
 The app exposes `/api/award-evidence` and renders that data in the session panel, so the live demo can point directly to the hackathon bonus targets it is designed to satisfy.
+
+`/api/runtime-status` keeps the demo honest: if llama.cpp or Kokoro is unavailable, the UI labels the fallback state instead of silently pretending that every model path is online.
