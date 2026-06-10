@@ -17,6 +17,7 @@ const controls = {
   next: document.querySelector("#nextButton"),
   heading: document.querySelector("#headingButton"),
   image: document.querySelector("#imageButton"),
+  summary: document.querySelector("#summaryButton"),
 };
 
 const nodes = [...document.querySelectorAll(".speakable")].map((element, index) => ({
@@ -62,6 +63,21 @@ function renderTranscript() {
 function addTranscriptEntry(entry) {
   transcriptEntries = [entry, ...transcriptEntries].slice(0, 12);
   renderTranscript();
+}
+
+function currentSection() {
+  const activeNode = nodes[currentIndex]?.element;
+  return activeNode?.closest("section") || document.querySelector("#article article");
+}
+
+function currentSectionPayload() {
+  const section = currentSection();
+  const title = section.querySelector("h1, h2, h3")?.innerText.trim() || "Article introduction";
+  const text = [...section.querySelectorAll(".speakable")]
+    .map((element) => element.innerText.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .join(" ");
+  return { title, text };
 }
 
 async function loadManifest() {
@@ -182,11 +198,59 @@ async function narrate(index) {
   }
 }
 
+async function summarizeCurrentSection() {
+  if (!enabled) return;
+  const serial = ++requestSerial;
+  const section = currentSectionPayload();
+  runtimeStatus.textContent = "Summarizing";
+  controls.summary.disabled = true;
+
+  try {
+    const result = await postJson("/api/reader-brain", {
+      node_type: "section",
+      text: section.text,
+      position: section.title,
+      mode: "summarize",
+    });
+
+    if (serial !== requestSerial) return;
+
+    runtimeStatus.textContent = result.runtime;
+    liveNarration.textContent = result.narration;
+    addTranscriptEntry({
+      type: "summary",
+      runtime: result.runtime,
+      text: result.narration,
+    });
+
+    const speech = await postJson("/api/speak", {
+      text: result.narration,
+      speed: Number(speedControl.value),
+    });
+
+    if (serial !== requestSerial) return;
+
+    if (speech.audio_url) {
+      audio.src = speech.audio_url;
+      await audio.play().catch(() => {
+        liveNarration.textContent = `${result.narration} Audio is ready. Press Play to hear it.`;
+      });
+      playing = !audio.paused;
+      controls.play.textContent = playing ? "Pause" : "Play";
+    }
+  } catch (error) {
+    runtimeStatus.textContent = "Error";
+    liveNarration.textContent = `Summary failed: ${error.message}`;
+  } finally {
+    controls.summary.disabled = false;
+  }
+}
+
 function announceIntro() {
   const headings = nodes.filter((node) => node.type === "heading").length;
   const images = nodes.filter((node) => node.type === "image").length;
   liveNarration.textContent =
-    `Screen reader mode on. Article contains ${headings} headings, ${images} images, and ${nodes.length} readable items. Press N for next, H for heading, I for image, or Space to begin.`;
+    `Screen reader mode on. Article contains ${headings} headings, ${images} images, and ${nodes.length} readable items. Press N for next, H for heading, I for image, S for section summary, or Space to begin.`;
   runtimeStatus.textContent = "Ready";
 }
 
@@ -203,6 +267,7 @@ controls.next.addEventListener("click", () => narrate(Math.min(currentIndex + 1,
 controls.prev.addEventListener("click", () => narrate(Math.max(currentIndex - 1, 0)));
 controls.heading.addEventListener("click", () => nextByType("heading"));
 controls.image.addEventListener("click", () => nextByType("image"));
+controls.summary.addEventListener("click", () => summarizeCurrentSection());
 copyTranscriptButton.addEventListener("click", async () => {
   const text = transcriptEntries
     .slice()
@@ -246,7 +311,7 @@ audio.addEventListener("ended", () => {
 document.addEventListener("keydown", (event) => {
   if (!enabled) return;
   const key = event.key.toLowerCase();
-  if ([" ", "n", "p", "h", "i", "r", "escape"].includes(key)) {
+  if ([" ", "n", "p", "h", "i", "s", "r", "escape"].includes(key)) {
     event.preventDefault();
   }
   if (key === " ") controls.play.click();
@@ -254,6 +319,7 @@ document.addEventListener("keydown", (event) => {
   if (key === "p") controls.prev.click();
   if (key === "h") controls.heading.click();
   if (key === "i") controls.image.click();
+  if (key === "s") controls.summary.click();
   if (key === "r" && currentIndex >= 0) narrate(currentIndex);
   if (key === "escape") {
     stopAudio();

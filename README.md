@@ -78,6 +78,7 @@ The frontend builds a reading queue from semantic article nodes. When screen-rea
 - `P` moves to the previous item.
 - `H` moves to the next heading.
 - `I` moves to the next image.
+- `S` summarizes the current section.
 - `R` repeats the current item.
 - `Esc` stops the current audio.
 

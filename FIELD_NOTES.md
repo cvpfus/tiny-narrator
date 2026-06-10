@@ -37,6 +37,7 @@ Keyboard map:
 - `P`: previous item.
 - `H`: next heading.
 - `I`: next image.
+- `S`: summarize the current section.
 - `R`: repeat current item.
 - `Esc`: stop audio.
 

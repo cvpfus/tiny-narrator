@@ -41,6 +41,15 @@ def verify_core_fallbacks() -> None:
     assert_true(narration["ok"], "Reader-brain fallback did not return ok")
     assert_true("Heading." in narration["narration"], "Reader-brain fallback lost heading prefix")
 
+    summary = app.reader_brain_core(
+        node_type="section",
+        text="Tiny models can run close to the reader. They keep latency low and preserve privacy.",
+        position="Why",
+        mode="summarize",
+    )
+    assert_true(summary["ok"], "Reader-brain summary fallback did not return ok")
+    assert_true(summary["narration"].startswith("Summary."), "Summary fallback should announce summary mode")
+
     description = app.describe_image_core("model-map", caption=None, prompt=None)
     assert_true(description["ok"], "Image description did not return ok")
     assert_true("small AI models" in description["alt_text"], "Image description fallback changed unexpectedly")
@@ -61,6 +70,7 @@ def verify_routes() -> None:
     assert_true(home.status_code == 200, "Home route should return 200")
     assert_true("Tiny Narrator" in home.text, "Home route should include app title")
     assert_true("readerToggle" in home.text, "Home route should include reader toggle")
+    assert_true("summaryButton" in home.text, "Home route should include summary control")
     assert_true("transcriptLog" in home.text, "Home route should include transcript log")
 
     health = client.get("/api/health")
@@ -76,6 +86,10 @@ def verify_routes() -> None:
     assert_true(manifest.status_code == 200, "Article manifest route should return 200")
     manifest_payload = manifest.json()
     assert_true("Tiny Titan" in manifest_payload["bonus_targets"], "Manifest should include Tiny Titan target")
+    assert_true(
+        {"key": "S", "action": "Summarize current section"} in manifest_payload["reader_controls"],
+        "Manifest should include summary shortcut",
+    )
     assert_true(
         manifest_payload["models"]["speech"]["id"] == "hexgrad/Kokoro-82M",
         "Manifest should document Kokoro speech model",

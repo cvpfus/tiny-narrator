@@ -61,6 +61,7 @@ ARTICLE_MANIFEST: dict[str, Any] = {
         {"key": "P", "action": "Previous item"},
         {"key": "H", "action": "Next heading"},
         {"key": "I", "action": "Next image"},
+        {"key": "S", "action": "Summarize current section"},
         {"key": "R", "action": "Repeat current item"},
         {"key": "Esc", "action": "Stop audio"},
     ],
@@ -101,16 +102,33 @@ def _json(data: dict[str, Any], status_code: int = 200) -> JSONResponse:
     return JSONResponse(data, status_code=status_code)
 
 
+def _compact_text(text: str, limit: int = 220) -> str:
+    normalized = " ".join(text.split())
+    if len(normalized) <= limit:
+        return normalized
+    return f"{normalized[: limit - 1].rstrip()}."
+
+
 def reader_brain_core(node_type: str, text: str, position: str | None, mode: str) -> dict[str, Any]:
-    prompt = (
-        "Convert this article node into concise screen-reader narration.\n"
-        f"Mode: {mode}\n"
-        f"Node type: {node_type}\n"
-        f"Position: {position or 'unknown'}\n"
-        f"Content: {text}\n\n"
-        "Rules: announce the node type only when it helps orientation, keep prose short, "
-        "and never mention implementation details."
-    )
+    if mode == "summarize":
+        prompt = (
+            "Summarize this article section for screen-reader navigation.\n"
+            f"Node type: {node_type}\n"
+            f"Position: {position or 'unknown'}\n"
+            f"Content: {text}\n\n"
+            "Rules: start with 'Summary.', use one or two short sentences, explain what the "
+            "reader can learn in this section, and never mention implementation details."
+        )
+    else:
+        prompt = (
+            "Convert this article node into concise screen-reader narration.\n"
+            f"Mode: {mode}\n"
+            f"Node type: {node_type}\n"
+            f"Position: {position or 'unknown'}\n"
+            f"Content: {text}\n\n"
+            "Rules: announce the node type only when it helps orientation, keep prose short, "
+            "and never mention implementation details."
+        )
 
     try:
         body = json.dumps(
@@ -152,12 +170,14 @@ def reader_brain_core(node_type: str, text: str, position: str | None, mode: str
             "button": "Control. ",
             "quote": "Quote. ",
         }.get(node_type, "")
+        if mode == "summarize":
+            prefix = "Summary. "
         return {
             "ok": True,
             "runtime": "fallback",
             "model": "rule-based local fallback",
             "warning": f"llama.cpp unavailable: {exc.__class__.__name__}",
-            "narration": f"{prefix}{text}".strip(),
+            "narration": f"{prefix}{_compact_text(text)}".strip(),
         }
 
 
