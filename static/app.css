@@ -28,7 +28,9 @@ body {
 }
 
 button,
-input {
+input,
+select,
+output {
   font: inherit;
 }
 
@@ -45,7 +47,8 @@ button:hover {
 
 button:focus-visible,
 a:focus-visible,
-input:focus-visible {
+input:focus-visible,
+select:focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 3px;
 }
@@ -359,6 +362,21 @@ dd {
   gap: 8px;
   color: var(--muted);
   font-size: 0.92rem;
+  font-weight: 750;
+}
+
+.reader-bar select {
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  padding: 0 10px;
+}
+
+.reader-bar output {
+  min-width: 48px;
+  color: var(--ink);
   font-weight: 750;
 }
 

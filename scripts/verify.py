@@ -77,6 +77,8 @@ def verify_routes() -> None:
     assert_true("summaryButton" in home.text, "Home route should include summary control")
     assert_true("imageStatus" in home.text, "Home route should include image status")
     assert_true("voiceStatus" in home.text, "Home route should include voice status")
+    assert_true("voiceControl" in home.text, "Home route should include voice control")
+    assert_true("speedValue" in home.text, "Home route should include speed value output")
     assert_true("transcriptLog" in home.text, "Home route should include transcript log")
 
     health = client.get("/api/health")
@@ -99,6 +101,14 @@ def verify_routes() -> None:
     assert_true(
         manifest_payload["models"]["speech"]["id"] == "hexgrad/Kokoro-82M",
         "Manifest should document Kokoro speech model",
+    )
+    assert_true(
+        manifest_payload["reader_settings"]["default_voice"] == "af_heart",
+        "Manifest should document default Kokoro voice",
+    )
+    assert_true(
+        len(manifest_payload["reader_settings"]["voices"]) >= 4,
+        "Manifest should expose multiple Kokoro voice choices",
     )
 
     image_descriptions = client.get("/api/image-descriptions")

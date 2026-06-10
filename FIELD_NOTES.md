@@ -48,3 +48,5 @@ Live accessibility demos need dependable behavior. If llama.cpp is not available
 The app preloads image descriptions through `/api/image-descriptions`, caches them in the frontend, and writes the descriptions back into each image's `alt` attribute. That keeps the visible article, transcript, and spoken image narration aligned.
 
 Kokoro is still the intended model-backed TTS path. For local resilience, the frontend can use the browser speech engine when Kokoro is unavailable, and the session panel labels that as a browser fallback instead of model audio.
+
+Reader settings are manifest-backed: the app exposes known Kokoro voices and speed bounds through `/api/article-manifest`, then the custom frontend renders the controls and passes the selected voice to `/api/speak`.

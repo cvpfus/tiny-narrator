@@ -74,6 +74,18 @@ ARTICLE_IMAGES: list[dict[str, str]] = [
     },
 ]
 
+READER_SETTINGS: dict[str, Any] = {
+    "default_voice": "af_heart",
+    "default_speed": 1.0,
+    "voices": [
+        {"id": "af_heart", "label": "Heart"},
+        {"id": "af_bella", "label": "Bella"},
+        {"id": "am_adam", "label": "Adam"},
+        {"id": "am_michael", "label": "Michael"},
+    ],
+    "speed": {"min": 0.75, "max": 1.35, "step": 0.05},
+}
+
 ARTICLE_MANIFEST: dict[str, Any] = {
     "title": "A tiny model reader that turns articles into guided narration",
     "reader_controls": [
@@ -89,6 +101,7 @@ ARTICLE_MANIFEST: dict[str, Any] = {
     "bonus_targets": ["Tiny Titan", "Llama Champion", "Off-Brand", "Field Notes"],
     "images": ARTICLE_IMAGES,
     "models": MODEL_MANIFEST,
+    "reader_settings": READER_SETTINGS,
 }
 
 app = Server(title="Tiny Narrator")

@@ -8,7 +8,9 @@ const imageStatus = document.querySelector("#imageStatus");
 const voiceStatus = document.querySelector("#voiceStatus");
 const liveNarration = document.querySelector("#liveNarration");
 const audio = document.querySelector("#speechAudio");
+const voiceControl = document.querySelector("#voiceControl");
 const speedControl = document.querySelector("#speedControl");
+const speedValue = document.querySelector("#speedValue");
 const transcriptLog = document.querySelector("#transcriptLog");
 const copyTranscriptButton = document.querySelector("#copyTranscriptButton");
 const clearTranscriptButton = document.querySelector("#clearTranscriptButton");
@@ -39,6 +41,10 @@ let requestSerial = 0;
 let transcriptEntries = [];
 let imageDescriptions = new Map();
 let lastSpokenText = "";
+
+function updateSpeedValue() {
+  speedValue.textContent = `${Number(speedControl.value).toFixed(2)}x`;
+}
 
 function escapeHtml(value) {
   return value.replace(/[&<>"']/g, (char) => ({
@@ -89,6 +95,21 @@ async function loadManifest() {
     const manifest = await postJson("/api/article-manifest");
     const modelCount = Object.keys(manifest.models || {}).length;
     modelStatus.textContent = `${modelCount} tiny models, ${manifest.bonus_targets.join(", ")}`;
+    const settings = manifest.reader_settings;
+    if (settings?.voices?.length) {
+      voiceControl.innerHTML = settings.voices
+        .map((voice) => `<option value="${escapeHtml(voice.id)}">${escapeHtml(voice.label)}</option>`)
+        .join("");
+      voiceControl.value = settings.default_voice;
+      voiceStatus.textContent = voiceControl.selectedOptions[0]?.textContent || "Ready";
+    }
+    if (settings?.speed) {
+      speedControl.min = settings.speed.min;
+      speedControl.max = settings.speed.max;
+      speedControl.step = settings.speed.step;
+      speedControl.value = settings.default_speed;
+      updateSpeedValue();
+    }
   } catch {
     modelStatus.textContent = "Manifest unavailable";
   }
@@ -174,6 +195,7 @@ async function speakNarration(text, serial) {
   lastSpokenText = text;
   const speech = await postJson("/api/speak", {
     text,
+    voice: voiceControl.value || "af_heart",
     speed: Number(speedControl.value),
   });
 
@@ -319,6 +341,12 @@ controls.prev.addEventListener("click", () => narrate(Math.max(currentIndex - 1,
 controls.heading.addEventListener("click", () => nextByType("heading"));
 controls.image.addEventListener("click", () => nextByType("image"));
 controls.summary.addEventListener("click", () => summarizeCurrentSection());
+voiceControl.addEventListener("change", () => {
+  voiceStatus.textContent = voiceControl.selectedOptions[0]?.textContent || "Custom voice";
+});
+speedControl.addEventListener("input", () => {
+  updateSpeedValue();
+});
 copyTranscriptButton.addEventListener("click", async () => {
   const text = transcriptEntries
     .slice()
@@ -361,6 +389,7 @@ controls.play.addEventListener("click", () => {
 
 loadManifest();
 loadImageDescriptions();
+updateSpeedValue();
 
 audio.addEventListener("ended", () => {
   playing = false;
