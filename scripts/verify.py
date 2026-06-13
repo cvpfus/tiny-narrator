@@ -20,6 +20,7 @@ def assert_true(condition: bool, message: str) -> None:
 
 def verify_static_assets() -> None:
     required = [
+        ROOT / "LICENSE",
         ROOT / "SUBMISSION.md",
         ROOT / "static" / "index.html",
         ROOT / "static" / "app.css",
@@ -70,6 +71,7 @@ def front_matter_value(readme: str, key: str) -> str:
 def verify_space_metadata() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8").splitlines()
+    license_text = (ROOT / "LICENSE").read_text(encoding="utf-8")
 
     sdk_version = front_matter_value(readme, "sdk_version")
     app_file = front_matter_value(readme, "app_file")
@@ -83,6 +85,8 @@ def verify_space_metadata() -> None:
     assert_true(app_file == "app.py", "Space metadata should launch app.py")
     assert_true(emoji and "ð" not in emoji, "Space metadata emoji should be valid UTF-8")
     assert_true(license_id == "apache-2.0", "Space metadata should declare the Apache-2.0 license")
+    assert_true("Apache License" in license_text, "Repository should include the Apache license text")
+    assert_true("Version 2.0" in license_text, "Repository license should match Space metadata")
     assert_true(f"gradio=={sdk_version}" in requirements, "requirements.txt should pin Gradio to sdk_version")
     for package in ["pydantic", "kokoro", "soundfile"]:
         assert_true(
