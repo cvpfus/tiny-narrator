@@ -201,6 +201,50 @@ def runtime_setup_core() -> dict[str, Any]:
     }
 
 
+def demo_script_core() -> dict[str, Any]:
+    return {
+        "ok": True,
+        "title": "Tiny Narrator judge demo",
+        "goal": "Show a custom article app becoming a small-model screen reader with inspectable evidence.",
+        "estimated_minutes": 3,
+        "actions": [
+            {
+                "step": 1,
+                "label": "Open the article",
+                "action": "Load the home page and scan the article plus session panel.",
+                "evidence": "Custom HTML/CSS/JS interface served by Gradio Server.",
+            },
+            {
+                "step": 2,
+                "label": "Turn on reader mode",
+                "action": "Toggle screen reader mode, then press Space or Next to narrate the first item.",
+                "evidence": "The active article node is focused, outlined, narrated, and logged.",
+            },
+            {
+                "step": 3,
+                "label": "Navigate by meaning",
+                "action": "Use Heading, Image, and Summary controls to jump through semantic article nodes.",
+                "evidence": "The reader uses article structure, image alt text, and section summaries.",
+            },
+            {
+                "step": 4,
+                "label": "Inspect small-model receipts",
+                "action": "Review the checklist, model budget, runtime plan, readiness, latency, and transcript panels.",
+                "evidence": "Tiny Titan, Llama Champion, Off-Brand, and Field Notes evidence is visible.",
+            },
+        ],
+        "api_checks": [
+            {"method": "GET", "path": "/api/health", "expect": "custom Gradio Server app and model manifest"},
+            {"method": "GET", "path": "/api/model-budget", "expect": "all_models_within_limit is true"},
+            {"method": "GET", "path": "/api/runtime-setup", "expect": "llama.cpp, Kokoro, vision, and image paths"},
+            {"method": "GET", "path": "/api/runtime-status", "expect": "online or fallback-ready runtime labels"},
+            {"method": "GET", "path": "/api/image-descriptions", "expect": "three article image descriptions"},
+            {"method": "POST", "path": "/api/reader-brain", "expect": "concise narration or fallback narration"},
+            {"method": "POST", "path": "/api/speak", "expect": "Kokoro audio or audible browser fallback path"},
+        ],
+    }
+
+
 ARTICLE_MANIFEST: dict[str, Any] = {
     "title": "A tiny model reader that turns articles into guided narration",
     "reader_controls": [
@@ -218,6 +262,7 @@ ARTICLE_MANIFEST: dict[str, Any] = {
     "models": MODEL_MANIFEST,
     "model_budget": model_budget_core(),
     "runtime_setup": runtime_setup_core(),
+    "demo_script": demo_script_core(),
     "reader_settings": READER_SETTINGS,
     "award_evidence": AWARD_EVIDENCE,
 }
@@ -538,6 +583,11 @@ async def runtime_setup() -> JSONResponse:
     return _json(runtime_setup_core())
 
 
+@app.get("/api/demo-script")
+async def demo_script() -> JSONResponse:
+    return _json(demo_script_core())
+
+
 @app.get("/api/runtime-status")
 async def runtime_status() -> JSONResponse:
     return _json(_runtime_status_core())
@@ -591,6 +641,11 @@ def model_budget_api() -> str:
 @app.api(name="runtime_setup")
 def runtime_setup_api() -> str:
     return json.dumps(runtime_setup_core())
+
+
+@app.api(name="demo_script")
+def demo_script_api() -> str:
+    return json.dumps(demo_script_core())
 
 
 @app.api(name="speak")

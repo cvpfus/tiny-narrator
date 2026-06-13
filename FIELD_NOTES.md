@@ -28,6 +28,8 @@ The app exposes the same budget through `/api/model-budget`, including numeric `
 
 Runtime setup is also data-backed. `/api/runtime-setup` lists the app command, llama.cpp launch command, model-specific runtime paths, environment values, and fallbacks. The session panel renders a compact version so the demo can distinguish real model wiring from deterministic safety nets.
 
+The judge runbook lives at `/api/demo-script`. It keeps the live presentation repeatable by pairing visible actions with API checks for health, model budget, runtime setup, runtime status, image descriptions, reader narration, and speech.
+
 ## Reader Mode Behavior
 
 The frontend creates a reading queue from semantic nodes: headings, paragraphs, quotes, figures, captions, and controls. It speaks one item at a time, keeps keyboard focus synchronized with the active node, and exposes the current narration through an `aria-live` region.

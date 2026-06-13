@@ -149,6 +149,10 @@ def verify_routes() -> None:
         len(manifest_payload["runtime_setup"]["steps"]) == 4,
         "Manifest should expose setup steps for each model role",
     )
+    assert_true(
+        len(manifest_payload["demo_script"]["actions"]) >= 4,
+        "Manifest should expose a judge demo script",
+    )
 
     awards = client.get("/api/award-evidence")
     assert_true(awards.status_code == 200, "Award evidence route should return 200")
@@ -182,6 +186,23 @@ def verify_routes() -> None:
     assert_true(
         "llama-server" in setup_payload["steps"][0]["command"],
         "Runtime setup should include the llama.cpp launch command",
+    )
+
+    demo = client.get("/api/demo-script")
+    assert_true(demo.status_code == 200, "Demo script route should return 200")
+    demo_payload = demo.json()
+    assert_true(demo_payload["ok"], "Demo script payload should be ok")
+    assert_true(
+        "Tiny Narrator judge demo" == demo_payload["title"],
+        "Demo script should be labeled for judging",
+    )
+    assert_true(
+        {item["path"] for item in demo_payload["api_checks"]} >= {"/api/model-budget", "/api/runtime-setup"},
+        "Demo script should include evidence API checks",
+    )
+    assert_true(
+        any("Tiny Titan" in action["evidence"] for action in demo_payload["actions"]),
+        "Demo script should point to targeted award evidence",
     )
 
     runtime = client.get("/api/runtime-status")

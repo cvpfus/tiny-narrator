@@ -50,7 +50,7 @@ Start the app:
 python app.py
 ```
 
-Open the local URL printed by Gradio. The custom frontend calls `/api/reader-brain`, `/api/image-descriptions`, `/api/describe-image`, `/api/speak`, `/api/generate-image`, `/api/model-budget`, and `/api/runtime-setup`.
+Open the local URL printed by Gradio. The custom frontend calls `/api/reader-brain`, `/api/image-descriptions`, `/api/describe-image`, `/api/speak`, `/api/generate-image`, `/api/model-budget`, `/api/runtime-setup`, and `/api/demo-script`.
 
 Useful environment variables:
 
@@ -72,6 +72,8 @@ The verifier checks syntax, static assets, deterministic fallback model paths, a
 `/api/model-budget` exposes numeric parameter counts for every model role and reports whether the full stack stays within the 4B Tiny Titan limit.
 
 `/api/runtime-setup` exposes the commands, environment values, and fallback paths used for the model stack so the demo can be reproduced from the same data the UI displays.
+
+`/api/demo-script` exposes a compact judge runbook with the visible actions and API checks that prove the submission claims.
 
 ## Screen Reader Mode
 
