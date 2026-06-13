@@ -92,6 +92,8 @@ Kokoro remains the planned tiny-model TTS path. During local demos, if the serve
 
 The reader bar exposes Kokoro voice selection and speaking speed controls. Defaults come from `/api/article-manifest` so the UI, docs, and backend stay aligned.
 
+Auto-advance is available as an opt-in reader control. It stays off by default so users keep manual control unless they choose continuous reading.
+
 Reader-brain, image-description, speech, and image-generation responses include `elapsed_ms`. The session panel and transcript show recent latency so the Field Notes can discuss responsiveness with concrete numbers.
 
 The session panel also renders a manifest-backed demo checklist for Tiny Titan, Llama Champion, Off-Brand, and Field Notes evidence.

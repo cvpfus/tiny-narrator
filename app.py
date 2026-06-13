@@ -79,6 +79,7 @@ ARTICLE_IMAGES: list[dict[str, str]] = [
 READER_SETTINGS: dict[str, Any] = {
     "default_voice": "af_heart",
     "default_speed": 1.0,
+    "default_auto_advance": False,
     "voices": [
         {"id": "af_heart", "label": "Heart"},
         {"id": "af_bella", "label": "Bella"},

@@ -89,6 +89,7 @@ def verify_routes() -> None:
     assert_true("latencyStatus" in home.text, "Home route should include latency status")
     assert_true("voiceControl" in home.text, "Home route should include voice control")
     assert_true("speedValue" in home.text, "Home route should include speed value output")
+    assert_true("autoAdvanceControl" in home.text, "Home route should include auto-advance control")
     assert_true("transcriptLog" in home.text, "Home route should include transcript log")
     assert_true("awardEvidenceList" in home.text, "Home route should include award evidence list")
 
@@ -120,6 +121,10 @@ def verify_routes() -> None:
     assert_true(
         len(manifest_payload["reader_settings"]["voices"]) >= 4,
         "Manifest should expose multiple Kokoro voice choices",
+    )
+    assert_true(
+        manifest_payload["reader_settings"]["default_auto_advance"] is False,
+        "Manifest should default auto-advance off",
     )
     assert_true(
         len(manifest_payload["award_evidence"]) == 4,

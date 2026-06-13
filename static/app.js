@@ -13,6 +13,7 @@ const audio = document.querySelector("#speechAudio");
 const voiceControl = document.querySelector("#voiceControl");
 const speedControl = document.querySelector("#speedControl");
 const speedValue = document.querySelector("#speedValue");
+const autoAdvanceControl = document.querySelector("#autoAdvanceControl");
 const transcriptLog = document.querySelector("#transcriptLog");
 const copyTranscriptButton = document.querySelector("#copyTranscriptButton");
 const clearTranscriptButton = document.querySelector("#clearTranscriptButton");
@@ -44,6 +45,8 @@ let requestSerial = 0;
 let transcriptEntries = [];
 let imageDescriptions = new Map();
 let lastSpokenText = "";
+let activeAutoAdvance = false;
+let activeSpeechSerial = 0;
 
 function updateSpeedValue() {
   speedValue.textContent = `${Number(speedControl.value).toFixed(2)}x`;
@@ -120,6 +123,7 @@ async function loadManifest() {
       speedControl.value = settings.default_speed;
       updateSpeedValue();
     }
+    autoAdvanceControl.checked = Boolean(settings?.default_auto_advance);
   } catch {
     modelStatus.textContent = "Manifest unavailable";
   }
@@ -220,11 +224,26 @@ function stopAudio() {
   audio.pause();
   audio.removeAttribute("src");
   window.speechSynthesis?.cancel();
+  activeAutoAdvance = false;
+  activeSpeechSerial = 0;
   playing = false;
   controls.play.textContent = "Play";
 }
 
-function browserSpeak(text) {
+function maybeAutoAdvance(serial) {
+  if (!enabled || !autoAdvanceControl.checked || !activeAutoAdvance || serial !== requestSerial) {
+    return;
+  }
+  const nextIndex = currentIndex + 1;
+  if (nextIndex < nodes.length) {
+    window.setTimeout(() => narrate(nextIndex), 250);
+  } else {
+    liveNarration.textContent = "End of article.";
+    activeAutoAdvance = false;
+  }
+}
+
+function browserSpeak(text, serial) {
   if (!("speechSynthesis" in window)) {
     return false;
   }
@@ -234,6 +253,7 @@ function browserSpeak(text) {
   utterance.onend = () => {
     playing = false;
     controls.play.textContent = "Play";
+    maybeAutoAdvance(serial);
   };
   window.speechSynthesis.speak(utterance);
   playing = true;
@@ -241,8 +261,10 @@ function browserSpeak(text) {
   return true;
 }
 
-async function speakNarration(text, serial) {
+async function speakNarration(text, serial, autoAdvance = false) {
   lastSpokenText = text;
+  activeAutoAdvance = autoAdvance;
+  activeSpeechSerial = serial;
   const speech = await postJson("/api/speak", {
     text,
     voice: voiceControl.value || "af_heart",
@@ -252,7 +274,7 @@ async function speakNarration(text, serial) {
   if (serial !== requestSerial) return;
 
   if (speech.runtime === "fallback") {
-    const spoke = browserSpeak(text);
+    const spoke = browserSpeak(text, serial);
     voiceStatus.textContent = spoke ? "Browser fallback" : "Transcript only";
     if (!spoke) {
       liveNarration.textContent = `${text} Audio fallback is unavailable. Transcript is visible.`;
@@ -263,7 +285,7 @@ async function speakNarration(text, serial) {
   if (speech.audio_url) {
     audio.src = speech.audio_url;
     await audio.play().catch(() => {
-      const spoke = browserSpeak(text);
+      const spoke = browserSpeak(text, serial);
       voiceStatus.textContent = spoke ? "Browser fallback" : "Audio ready";
       liveNarration.textContent = spoke ? text : `${text} Audio is ready. Press Play to hear it.`;
     });
@@ -322,7 +344,7 @@ async function narrate(index) {
     runtimeStatus.textContent = result.runtime;
     liveNarration.textContent = result.narration;
 
-    const speech = await speakNarration(result.narration, serial);
+    const speech = await speakNarration(result.narration, serial, true);
     const elapsedMs = (result.elapsed_ms || 0) + (speech?.elapsed_ms || 0);
     latencyStatus.textContent = formatElapsed(elapsedMs);
     addTranscriptEntry({
@@ -359,7 +381,7 @@ async function summarizeCurrentSection() {
     runtimeStatus.textContent = result.runtime;
     liveNarration.textContent = result.narration;
 
-    const speech = await speakNarration(result.narration, serial);
+    const speech = await speakNarration(result.narration, serial, false);
     const elapsedMs = (result.elapsed_ms || 0) + (speech?.elapsed_ms || 0);
     latencyStatus.textContent = formatElapsed(elapsedMs);
     addTranscriptEntry({
@@ -438,7 +460,8 @@ controls.play.addEventListener("click", () => {
     playing = true;
     controls.play.textContent = "Pause";
   } else if (lastSpokenText) {
-    browserSpeak(lastSpokenText);
+    activeAutoAdvance = false;
+    browserSpeak(lastSpokenText, requestSerial);
   } else {
     narrate(currentIndex);
   }
@@ -453,6 +476,7 @@ updateSpeedValue();
 audio.addEventListener("ended", () => {
   playing = false;
   controls.play.textContent = "Play";
+  maybeAutoAdvance(activeSpeechSerial);
 });
 
 document.addEventListener("keydown", (event) => {

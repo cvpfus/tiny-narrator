@@ -51,6 +51,8 @@ Kokoro is still the intended model-backed TTS path. For local resilience, the fr
 
 Reader settings are manifest-backed: the app exposes known Kokoro voices and speed bounds through `/api/article-manifest`, then the custom frontend renders the controls and passes the selected voice to `/api/speak`.
 
+Auto-advance is intentionally opt-in. This keeps the default reader mode user-controlled while still supporting a continuous-reading demo path.
+
 Every model-facing backend path reports `elapsed_ms`. The frontend surfaces the latest end-to-end reader latency and stores per-item timing in the transcript, giving the build report concrete evidence for the small-model responsiveness claim.
 
 The app exposes `/api/award-evidence` and renders that data in the session panel, so the live demo can point directly to the hackathon bonus targets it is designed to satisfy.
