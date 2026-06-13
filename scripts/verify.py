@@ -290,6 +290,13 @@ def verify_routes() -> None:
         any(item["path"] == "/api/accessibility-audit" for item in demo_payload["api_checks"]),
         "Demo script should include the accessibility audit check",
     )
+    reader_check = next(item for item in demo_payload["api_checks"] if item["path"] == "/api/reader-brain")
+    speech_check = next(item for item in demo_payload["api_checks"] if item["path"] == "/api/speak")
+    assert_true(reader_check["sample_body"]["mode"] == "narrate", "Reader-brain demo check should include a sample body")
+    assert_true(
+        speech_check["sample_body"]["voice"] == app.READER_SETTINGS["default_voice"],
+        "Speech demo check should use the default reader voice",
+    )
 
     audit = client.get("/api/accessibility-audit")
     assert_true(audit.status_code == 200, "Accessibility audit route should return 200")

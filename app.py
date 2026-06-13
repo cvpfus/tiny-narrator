@@ -240,8 +240,27 @@ def demo_script_core() -> dict[str, Any]:
             {"method": "GET", "path": "/api/runtime-status", "expect": "online or fallback-ready runtime labels"},
             {"method": "GET", "path": "/api/accessibility-audit", "expect": "all reader-mode checks pass"},
             {"method": "GET", "path": "/api/image-descriptions", "expect": "three article image descriptions"},
-            {"method": "POST", "path": "/api/reader-brain", "expect": "concise narration or fallback narration"},
-            {"method": "POST", "path": "/api/speak", "expect": "Kokoro audio or audible browser fallback path"},
+            {
+                "method": "POST",
+                "path": "/api/reader-brain",
+                "expect": "concise narration or fallback narration",
+                "sample_body": {
+                    "node_type": "heading",
+                    "text": "The model map",
+                    "position": "item 4 of 10",
+                    "mode": "narrate",
+                },
+            },
+            {
+                "method": "POST",
+                "path": "/api/speak",
+                "expect": "Kokoro audio or audible browser fallback path",
+                "sample_body": {
+                    "text": "Heading. The model map.",
+                    "voice": READER_SETTINGS["default_voice"],
+                    "speed": READER_SETTINGS["default_speed"],
+                },
+            },
         ],
     }
 

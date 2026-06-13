@@ -44,7 +44,8 @@ The prototype is designed for a live hackathon demo: every model-facing path has
 - `/api/demo-script`: repeatable judge runbook and API checks.
 - `/api/image-descriptions`: generated article image descriptions for reader mode.
 
+The POST checks in `/api/demo-script` include sample JSON bodies for `/api/reader-brain` and `/api/speak`.
+
 ## Reliability notes
 
 The demo remains navigable when local models are unavailable. The reader brain falls back to deterministic narration, image descriptions fall back to cached alt text, speech falls back to browser speech plus transcript, and generated images fall back to bundled article assets. Fallback states are labeled instead of hidden.
-
