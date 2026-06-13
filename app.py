@@ -146,6 +146,61 @@ def model_budget_core() -> dict[str, Any]:
     }
 
 
+def runtime_setup_core() -> dict[str, Any]:
+    return {
+        "ok": True,
+        "app": {
+            "runtime": "Gradio Server",
+            "command": "python app.py",
+            "env": {
+                "GRADIO_SERVER_NAME": GRADIO_SERVER_NAME,
+                "GRADIO_SERVER_PORT": str(GRADIO_SERVER_PORT),
+            },
+        },
+        "steps": [
+            {
+                "role": "reader_brain",
+                "label": "Reader brain",
+                "model": MODEL_MANIFEST["reader_brain"]["id"],
+                "runtime": "llama.cpp",
+                "command": (
+                    "llama-server -hf nvidia/NVIDIA-Nemotron-3-Nano-4B-GGUF:Q4_K_M "
+                    "--alias narrator-brain --port 8080 --host 0.0.0.0"
+                ),
+                "env": {"LLAMA_CPP_BASE_URL": LLAMA_CPP_BASE_URL, "LLAMA_CPP_MODEL": LLAMA_CPP_MODEL},
+                "fallback": "rule-based local narration",
+            },
+            {
+                "role": "speech",
+                "label": "Speech",
+                "model": MODEL_MANIFEST["speech"]["id"],
+                "runtime": "Python Kokoro",
+                "command": "python -m pip install kokoro soundfile",
+                "env": {},
+                "fallback": "browser speech plus visible transcript",
+            },
+            {
+                "role": "vision",
+                "label": "Image descriptions",
+                "model": MODEL_MANIFEST["vision"]["id"],
+                "runtime": "Python integration planned",
+                "command": "planned MiniCPM-V adapter",
+                "env": {},
+                "fallback": "cached deterministic alt text",
+            },
+            {
+                "role": "image_generation",
+                "label": "Article images",
+                "model": MODEL_MANIFEST["image_generation"]["id"],
+                "runtime": "Python integration planned",
+                "command": "planned FLUX.2 klein adapter",
+                "env": {},
+                "fallback": "bundled generated article assets",
+            },
+        ],
+    }
+
+
 ARTICLE_MANIFEST: dict[str, Any] = {
     "title": "A tiny model reader that turns articles into guided narration",
     "reader_controls": [
@@ -162,6 +217,7 @@ ARTICLE_MANIFEST: dict[str, Any] = {
     "images": ARTICLE_IMAGES,
     "models": MODEL_MANIFEST,
     "model_budget": model_budget_core(),
+    "runtime_setup": runtime_setup_core(),
     "reader_settings": READER_SETTINGS,
     "award_evidence": AWARD_EVIDENCE,
 }
@@ -477,6 +533,11 @@ async def model_budget() -> JSONResponse:
     return _json(model_budget_core())
 
 
+@app.get("/api/runtime-setup")
+async def runtime_setup() -> JSONResponse:
+    return _json(runtime_setup_core())
+
+
 @app.get("/api/runtime-status")
 async def runtime_status() -> JSONResponse:
     return _json(_runtime_status_core())
@@ -525,6 +586,11 @@ def describe_article_images_api() -> str:
 @app.api(name="model_budget")
 def model_budget_api() -> str:
     return json.dumps(model_budget_core())
+
+
+@app.api(name="runtime_setup")
+def runtime_setup_api() -> str:
+    return json.dumps(runtime_setup_core())
 
 
 @app.api(name="speak")

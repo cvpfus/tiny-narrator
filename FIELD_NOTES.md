@@ -26,6 +26,8 @@ Tiny Narrator is a small-model accessibility article reader. It is not a generic
 
 The app exposes the same budget through `/api/model-budget`, including numeric `params_billion` values and a boolean `all_models_within_limit` check. The session panel renders that payload so the Tiny Titan claim is visible during the demo.
 
+Runtime setup is also data-backed. `/api/runtime-setup` lists the app command, llama.cpp launch command, model-specific runtime paths, environment values, and fallbacks. The session panel renders a compact version so the demo can distinguish real model wiring from deterministic safety nets.
+
 ## Reader Mode Behavior
 
 The frontend creates a reading queue from semantic nodes: headings, paragraphs, quotes, figures, captions, and controls. It speaks one item at a time, keeps keyboard focus synchronized with the active node, and exposes the current narration through an `aria-live` region.

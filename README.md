@@ -50,7 +50,7 @@ Start the app:
 python app.py
 ```
 
-Open the local URL printed by Gradio. The custom frontend calls `/api/reader-brain`, `/api/image-descriptions`, `/api/describe-image`, `/api/speak`, and `/api/generate-image`.
+Open the local URL printed by Gradio. The custom frontend calls `/api/reader-brain`, `/api/image-descriptions`, `/api/describe-image`, `/api/speak`, `/api/generate-image`, `/api/model-budget`, and `/api/runtime-setup`.
 
 Useful environment variables:
 
@@ -70,6 +70,8 @@ python scripts/verify.py
 The verifier checks syntax, static assets, deterministic fallback model paths, and generated speech file behavior.
 
 `/api/model-budget` exposes numeric parameter counts for every model role and reports whether the full stack stays within the 4B Tiny Titan limit.
+
+`/api/runtime-setup` exposes the commands, environment values, and fallback paths used for the model stack so the demo can be reproduced from the same data the UI displays.
 
 ## Screen Reader Mode
 
@@ -101,5 +103,7 @@ Navigation commands interrupt current speech before starting the next request, m
 Reader-brain, image-description, speech, and image-generation responses include `elapsed_ms`. The session panel and transcript show recent latency so the Field Notes can discuss responsiveness with concrete numbers.
 
 The session panel also renders a manifest-backed demo checklist for Tiny Titan, Llama Champion, Off-Brand, and Field Notes evidence. A model-budget panel reads `/api/model-budget` so judges can see each role's parameter count in the live app.
+
+A runtime-plan panel reads `/api/runtime-setup` and summarizes each model path's runtime plus fallback, keeping the live demo honest about what is online and what is deterministic.
 
 `/api/runtime-status` performs a short readiness check for llama.cpp and local speech dependencies, then reports which fallback paths are ready for a live demo.

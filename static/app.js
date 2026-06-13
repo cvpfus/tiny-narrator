@@ -20,6 +20,8 @@ const clearTranscriptButton = document.querySelector("#clearTranscriptButton");
 const awardEvidenceList = document.querySelector("#awardEvidenceList");
 const budgetStatus = document.querySelector("#budgetStatus");
 const modelBudgetList = document.querySelector("#modelBudgetList");
+const runtimeSetupStatus = document.querySelector("#runtimeSetupStatus");
+const runtimeSetupList = document.querySelector("#runtimeSetupList");
 
 const controls = {
   prev: document.querySelector("#prevButton"),
@@ -191,6 +193,35 @@ async function loadModelBudget() {
           <span class="budget-pill">offline</span>
         </div>
         <p>Tiny Titan evidence is unavailable.</p>
+      </li>
+    `;
+  }
+}
+
+async function loadRuntimeSetup() {
+  try {
+    const payload = await postJson("/api/runtime-setup");
+    runtimeSetupStatus.textContent = `${payload.steps.length} paths`;
+    runtimeSetupList.innerHTML = payload.steps
+      .map((step) => `
+        <li>
+          <div class="runtime-row">
+            <span>${escapeHtml(step.label)}</span>
+            <span class="runtime-pill">${escapeHtml(step.runtime)}</span>
+          </div>
+          <p>${escapeHtml(step.fallback)}</p>
+        </li>
+      `)
+      .join("");
+  } catch {
+    runtimeSetupStatus.textContent = "Unavailable";
+    runtimeSetupList.innerHTML = `
+      <li>
+        <div class="runtime-row">
+          <span>Runtime plan</span>
+          <span class="runtime-pill">offline</span>
+        </div>
+        <p>Setup evidence is unavailable.</p>
       </li>
     `;
   }
@@ -518,6 +549,7 @@ controls.play.addEventListener("click", () => {
 loadManifest();
 loadAwardEvidence();
 loadModelBudget();
+loadRuntimeSetup();
 loadRuntimeStatus();
 loadImageDescriptions();
 updateSpeedValue();

@@ -101,6 +101,8 @@ def verify_routes() -> None:
     assert_true("awardEvidenceList" in home.text, "Home route should include award evidence list")
     assert_true("budgetStatus" in home.text, "Home route should include model budget status")
     assert_true("modelBudgetList" in home.text, "Home route should include model budget list")
+    assert_true("runtimeSetupStatus" in home.text, "Home route should include runtime setup status")
+    assert_true("runtimeSetupList" in home.text, "Home route should include runtime setup list")
 
     health = client.get("/api/health")
     assert_true(health.status_code == 200, "Health route should return 200")
@@ -143,6 +145,10 @@ def verify_routes() -> None:
         manifest_payload["model_budget"]["all_models_within_limit"],
         "Manifest should prove every model is within the Tiny Titan limit",
     )
+    assert_true(
+        len(manifest_payload["runtime_setup"]["steps"]) == 4,
+        "Manifest should expose setup steps for each model role",
+    )
 
     awards = client.get("/api/award-evidence")
     assert_true(awards.status_code == 200, "Award evidence route should return 200")
@@ -162,6 +168,20 @@ def verify_routes() -> None:
     assert_true(
         all(item["params_billion"] <= budget_payload["limit_billion"] for item in budget_payload["models"]),
         "Every model budget item should be at or below the limit",
+    )
+
+    setup = client.get("/api/runtime-setup")
+    assert_true(setup.status_code == 200, "Runtime setup route should return 200")
+    setup_payload = setup.json()
+    assert_true(setup_payload["ok"], "Runtime setup payload should be ok")
+    assert_true(
+        {item["role"] for item in setup_payload["steps"]}
+        == {"reader_brain", "speech", "vision", "image_generation"},
+        "Runtime setup should cover every model path",
+    )
+    assert_true(
+        "llama-server" in setup_payload["steps"][0]["command"],
+        "Runtime setup should include the llama.cpp launch command",
     )
 
     runtime = client.get("/api/runtime-status")
