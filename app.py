@@ -558,6 +558,22 @@ def _silent_wav(path: Path, seconds: float = 0.35, sample_rate: int = 24000) -> 
         wav.writeframes(b"\x00\x00" * frames)
 
 
+def _prune_speech_outputs(keep_path: Path, max_files: int = 24) -> None:
+    speech_files = sorted(
+        OUTPUT_DIR.glob("speech*.wav"),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    keep_resolved = keep_path.resolve()
+    for old_path in speech_files[max_files:]:
+        if old_path.resolve() == keep_resolved:
+            continue
+        try:
+            old_path.unlink()
+        except OSError:
+            pass
+
+
 def speak_core(text: str, voice: str, speed: float) -> dict[str, Any]:
     start = time.perf_counter()
     try:
@@ -576,6 +592,8 @@ def speak_core(text: str, voice: str, speed: float) -> dict[str, Any]:
         _silent_wav(output_path)
         runtime = "fallback"
         warning = f"Kokoro unavailable: {exc.__class__.__name__}"
+
+    _prune_speech_outputs(output_path)
 
     return {
         "ok": True,

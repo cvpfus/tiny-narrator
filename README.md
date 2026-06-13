@@ -100,6 +100,8 @@ Image descriptions are preloaded into a local cache and written into the page's 
 
 Kokoro remains the planned tiny-model TTS path. During local demos, if the server-side Kokoro call falls back, the browser speech engine can read the same transcript so screen-reader mode still produces audible feedback.
 
+Generated speech files are pruned automatically so repeated demos do not grow the Space's `outputs` directory without bound.
+
 The reader bar exposes Kokoro voice selection and speaking speed controls. Defaults come from `/api/article-manifest` so the UI, docs, and backend stay aligned.
 
 Auto-advance is available as an opt-in reader control. It stays off by default so users keep manual control unless they choose continuous reading.

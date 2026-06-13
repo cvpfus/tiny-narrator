@@ -139,6 +139,27 @@ def verify_core_fallbacks() -> None:
     assert_true(isinstance(generated["elapsed_ms"], int), "Image generation should include elapsed_ms")
 
 
+def verify_output_retention() -> None:
+    keep_path = app.OUTPUT_DIR / "speech-retention-keep.wav"
+    _ = app.speak_core("Tiny Narrator retention check.", voice="af_heart", speed=1.0)
+    keep_path.write_bytes(b"keep")
+    stale_files = []
+    for index in range(30):
+        stale_path = app.OUTPUT_DIR / f"speech-retention-stale-{index:02d}.wav"
+        stale_path.write_bytes(b"stale")
+        stale_files.append(stale_path)
+
+    app._prune_speech_outputs(keep_path, max_files=4)
+
+    remaining = list(app.OUTPUT_DIR.glob("speech*.wav"))
+    assert_true(keep_path.exists(), "Speech retention should keep the active output")
+    assert_true(len(remaining) <= 5, "Speech retention should prune stale generated audio")
+
+    keep_path.unlink(missing_ok=True)
+    for stale_path in stale_files:
+        stale_path.unlink(missing_ok=True)
+
+
 def verify_routes() -> None:
     client = TestClient(app.app)
 
@@ -308,6 +329,7 @@ def main() -> None:
     verify_static_assets()
     verify_space_metadata()
     verify_core_fallbacks()
+    verify_output_retention()
     verify_routes()
     print("Tiny Narrator verification passed.")
 
