@@ -74,9 +74,15 @@ def verify_space_metadata() -> None:
     sdk_version = front_matter_value(readme, "sdk_version")
     app_file = front_matter_value(readme, "app_file")
     sdk = front_matter_value(readme, "sdk")
+    emoji = front_matter_value(readme, "emoji")
+    title = front_matter_value(readme, "title")
+    license_id = front_matter_value(readme, "license")
 
+    assert_true(title == "Tiny Narrator", "Space metadata should name the app")
     assert_true(sdk == "gradio", "Space metadata should declare the Gradio SDK")
     assert_true(app_file == "app.py", "Space metadata should launch app.py")
+    assert_true(emoji and "ð" not in emoji, "Space metadata emoji should be valid UTF-8")
+    assert_true(license_id == "apache-2.0", "Space metadata should declare the Apache-2.0 license")
     assert_true(f"gradio=={sdk_version}" in requirements, "requirements.txt should pin Gradio to sdk_version")
     for package in ["pydantic", "kokoro", "soundfile"]:
         assert_true(
