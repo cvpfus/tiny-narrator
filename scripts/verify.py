@@ -20,6 +20,7 @@ def assert_true(condition: bool, message: str) -> None:
 
 def verify_static_assets() -> None:
     required = [
+        ROOT / "SUBMISSION.md",
         ROOT / "static" / "index.html",
         ROOT / "static" / "app.css",
         ROOT / "static" / "app.js",
@@ -40,6 +41,16 @@ def verify_static_assets() -> None:
     assert_true(
         "haltPlayback({ clearAutoAdvance: false });" in app_js,
         "New narration commands should interrupt current speech immediately",
+    )
+
+    submission = (ROOT / "SUBMISSION.md").read_text(encoding="utf-8")
+    for target in ["Tiny Titan", "Llama Champion", "Off-Brand", "Field Notes"]:
+        assert_true(target in submission, f"Submission packet should mention {target}")
+    for endpoint in ["/api/model-budget", "/api/runtime-setup", "/api/accessibility-audit", "/api/demo-script"]:
+        assert_true(endpoint in submission, f"Submission packet should mention {endpoint}")
+    assert_true(
+        "nvidia/NVIDIA-Nemotron-3-Nano-4B-GGUF" in submission,
+        "Submission packet should include the reader-brain model",
     )
 
 

@@ -14,6 +14,8 @@ license: apache-2.0
 
 Tiny Narrator is a Build Small Hackathon prototype: a custom Gradio Server article app that can switch into a guided screen-reader mode.
 
+For the hackathon form, see [SUBMISSION.md](SUBMISSION.md).
+
 ## Award Strategy
 
 - **Tiny Titan:** every planned model is at or below 4B parameters.
