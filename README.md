@@ -69,6 +69,8 @@ python scripts/verify.py
 
 The verifier checks syntax, static assets, deterministic fallback model paths, and generated speech file behavior.
 
+`/api/model-budget` exposes numeric parameter counts for every model role and reports whether the full stack stays within the 4B Tiny Titan limit.
+
 ## Screen Reader Mode
 
 The frontend builds a reading queue from semantic article nodes. When screen-reader mode is on:
@@ -98,6 +100,6 @@ Navigation commands interrupt current speech before starting the next request, m
 
 Reader-brain, image-description, speech, and image-generation responses include `elapsed_ms`. The session panel and transcript show recent latency so the Field Notes can discuss responsiveness with concrete numbers.
 
-The session panel also renders a manifest-backed demo checklist for Tiny Titan, Llama Champion, Off-Brand, and Field Notes evidence.
+The session panel also renders a manifest-backed demo checklist for Tiny Titan, Llama Champion, Off-Brand, and Field Notes evidence. A model-budget panel reads `/api/model-budget` so judges can see each role's parameter count in the live app.
 
 `/api/runtime-status` performs a short readiness check for llama.cpp and local speech dependencies, then reports which fallback paths are ready for a live demo.

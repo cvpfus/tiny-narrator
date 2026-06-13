@@ -18,6 +18,8 @@ const transcriptLog = document.querySelector("#transcriptLog");
 const copyTranscriptButton = document.querySelector("#copyTranscriptButton");
 const clearTranscriptButton = document.querySelector("#clearTranscriptButton");
 const awardEvidenceList = document.querySelector("#awardEvidenceList");
+const budgetStatus = document.querySelector("#budgetStatus");
+const modelBudgetList = document.querySelector("#modelBudgetList");
 
 const controls = {
   prev: document.querySelector("#prevButton"),
@@ -151,6 +153,44 @@ async function loadAwardEvidence() {
           <span class="award-status">offline</span>
         </div>
         <p class="award-evidence">Award evidence is unavailable.</p>
+      </li>
+    `;
+  }
+}
+
+function roleLabel(role) {
+  return role
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+async function loadModelBudget() {
+  try {
+    const payload = await postJson("/api/model-budget");
+    budgetStatus.textContent = payload.all_models_within_limit
+      ? `All <= ${payload.limit_billion}B`
+      : "Review needed";
+    modelBudgetList.innerHTML = payload.models
+      .map((model) => `
+        <li>
+          <div class="budget-row">
+            <span>${escapeHtml(roleLabel(model.role))}</span>
+            <span class="budget-pill">${escapeHtml(model.params)}</span>
+          </div>
+          <p>${escapeHtml(model.id)}</p>
+        </li>
+      `)
+      .join("");
+  } catch {
+    budgetStatus.textContent = "Unavailable";
+    modelBudgetList.innerHTML = `
+      <li>
+        <div class="budget-row">
+          <span>Model budget</span>
+          <span class="budget-pill">offline</span>
+        </div>
+        <p>Tiny Titan evidence is unavailable.</p>
       </li>
     `;
   }
@@ -477,6 +517,7 @@ controls.play.addEventListener("click", () => {
 
 loadManifest();
 loadAwardEvidence();
+loadModelBudget();
 loadRuntimeStatus();
 loadImageDescriptions();
 updateSpeedValue();

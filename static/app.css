@@ -290,6 +290,21 @@ dd {
   margin-top: 22px;
 }
 
+.budget-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.budget-header span {
+  color: var(--accent-strong);
+  font-size: 0.76rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
 .history-header button {
   min-height: 34px;
   border-radius: 6px;
@@ -344,6 +359,46 @@ dd {
   border-radius: 8px;
   padding: 10px 12px;
   background: var(--surface);
+}
+
+.budget-list {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.budget-list li {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--surface);
+}
+
+.budget-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.budget-pill {
+  border-radius: 999px;
+  background: rgba(197, 69, 44, 0.12);
+  color: var(--focus);
+  padding: 2px 8px;
+  font-size: 0.7rem;
+}
+
+.budget-list p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
 }
 
 .award-title {

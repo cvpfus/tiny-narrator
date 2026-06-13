@@ -24,6 +24,8 @@ Tiny Narrator is a small-model accessibility article reader. It is not a generic
 | Speech | `hexgrad/Kokoro-82M` | 82M | Fast screen-reader voice with a tiny footprint. |
 | Image generation | `black-forest-labs/FLUX.2-klein-4B` | 4B | Generates the article illustrations while staying Tiny Titan-safe. |
 
+The app exposes the same budget through `/api/model-budget`, including numeric `params_billion` values and a boolean `all_models_within_limit` check. The session panel renders that payload so the Tiny Titan claim is visible during the demo.
+
 ## Reader Mode Behavior
 
 The frontend creates a reading queue from semantic nodes: headings, paragraphs, quotes, figures, captions, and controls. It speaks one item at a time, keeps keyboard focus synchronized with the active node, and exposes the current narration through an `aria-live` region.

@@ -27,29 +27,34 @@ LLAMA_CPP_BASE_URL = os.getenv("LLAMA_CPP_BASE_URL", "http://localhost:8080/v1")
 LLAMA_CPP_MODEL = os.getenv("LLAMA_CPP_MODEL", "narrator-brain")
 GRADIO_SERVER_NAME = os.getenv("GRADIO_SERVER_NAME", "0.0.0.0")
 GRADIO_SERVER_PORT = int(os.getenv("PORT", os.getenv("GRADIO_SERVER_PORT", "7860")))
+TINY_TITAN_LIMIT_B = 4.0
 
-MODEL_MANIFEST: dict[str, dict[str, str]] = {
+MODEL_MANIFEST: dict[str, dict[str, Any]] = {
     "reader_brain": {
         "id": "nvidia/NVIDIA-Nemotron-3-Nano-4B-GGUF",
         "params": "3.97B",
+        "params_billion": 3.97,
         "runtime": "llama.cpp",
         "role": "Plans concise narration and reading-order phrasing.",
     },
     "vision": {
         "id": "openbmb/MiniCPM-V-2",
         "params": "3B",
+        "params_billion": 3.0,
         "runtime": "Python integration planned",
         "role": "Describes images and OCR-like visual details.",
     },
     "speech": {
         "id": "hexgrad/Kokoro-82M",
         "params": "82M",
+        "params_billion": 0.082,
         "runtime": "Python",
         "role": "Speaks the final narration.",
     },
     "image_generation": {
         "id": "black-forest-labs/FLUX.2-klein-4B",
         "params": "4B",
+        "params_billion": 4.0,
         "runtime": "Python integration planned",
         "role": "Creates article illustrations.",
     },
@@ -116,6 +121,31 @@ AWARD_EVIDENCE: list[dict[str, str]] = [
     },
 ]
 
+
+def model_budget_core() -> dict[str, Any]:
+    models = []
+    for role, model in MODEL_MANIFEST.items():
+        params_billion = float(model["params_billion"])
+        models.append(
+            {
+                "role": role,
+                "id": model["id"],
+                "runtime": model["runtime"],
+                "params": model["params"],
+                "params_billion": params_billion,
+                "limit_billion": TINY_TITAN_LIMIT_B,
+                "within_limit": params_billion <= TINY_TITAN_LIMIT_B,
+            }
+        )
+    return {
+        "ok": True,
+        "award": "Tiny Titan",
+        "limit_billion": TINY_TITAN_LIMIT_B,
+        "all_models_within_limit": all(model["within_limit"] for model in models),
+        "models": models,
+    }
+
+
 ARTICLE_MANIFEST: dict[str, Any] = {
     "title": "A tiny model reader that turns articles into guided narration",
     "reader_controls": [
@@ -131,6 +161,7 @@ ARTICLE_MANIFEST: dict[str, Any] = {
     "bonus_targets": ["Tiny Titan", "Llama Champion", "Off-Brand", "Field Notes"],
     "images": ARTICLE_IMAGES,
     "models": MODEL_MANIFEST,
+    "model_budget": model_budget_core(),
     "reader_settings": READER_SETTINGS,
     "award_evidence": AWARD_EVIDENCE,
 }
@@ -441,6 +472,11 @@ async def award_evidence() -> JSONResponse:
     return _json({"ok": True, "items": AWARD_EVIDENCE})
 
 
+@app.get("/api/model-budget")
+async def model_budget() -> JSONResponse:
+    return _json(model_budget_core())
+
+
 @app.get("/api/runtime-status")
 async def runtime_status() -> JSONResponse:
     return _json(_runtime_status_core())
@@ -484,6 +520,11 @@ def describe_image_api(image_id: str, caption: str = "", prompt: str = "") -> st
 @app.api(name="describe_article_images")
 def describe_article_images_api() -> str:
     return json.dumps(describe_article_images_core())
+
+
+@app.api(name="model_budget")
+def model_budget_api() -> str:
+    return json.dumps(model_budget_core())
 
 
 @app.api(name="speak")

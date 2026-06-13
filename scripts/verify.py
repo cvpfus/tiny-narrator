@@ -99,6 +99,8 @@ def verify_routes() -> None:
     assert_true("autoAdvanceControl" in home.text, "Home route should include auto-advance control")
     assert_true("transcriptLog" in home.text, "Home route should include transcript log")
     assert_true("awardEvidenceList" in home.text, "Home route should include award evidence list")
+    assert_true("budgetStatus" in home.text, "Home route should include model budget status")
+    assert_true("modelBudgetList" in home.text, "Home route should include model budget list")
 
     health = client.get("/api/health")
     assert_true(health.status_code == 200, "Health route should return 200")
@@ -137,6 +139,10 @@ def verify_routes() -> None:
         len(manifest_payload["award_evidence"]) == 4,
         "Manifest should expose four award evidence items",
     )
+    assert_true(
+        manifest_payload["model_budget"]["all_models_within_limit"],
+        "Manifest should prove every model is within the Tiny Titan limit",
+    )
 
     awards = client.get("/api/award-evidence")
     assert_true(awards.status_code == 200, "Award evidence route should return 200")
@@ -145,6 +151,17 @@ def verify_routes() -> None:
     assert_true(
         {item["id"] for item in award_payload["items"]} == {"tiny-titan", "llama-champion", "off-brand", "field-notes"},
         "Award evidence route should cover the targeted bonuses",
+    )
+
+    budget = client.get("/api/model-budget")
+    assert_true(budget.status_code == 200, "Model budget route should return 200")
+    budget_payload = budget.json()
+    assert_true(budget_payload["ok"], "Model budget payload should be ok")
+    assert_true(budget_payload["limit_billion"] == 4.0, "Tiny Titan limit should be 4B")
+    assert_true(budget_payload["all_models_within_limit"], "All models should stay within the Tiny Titan limit")
+    assert_true(
+        all(item["params_billion"] <= budget_payload["limit_billion"] for item in budget_payload["models"]),
+        "Every model budget item should be at or below the limit",
     )
 
     runtime = client.get("/api/runtime-status")
