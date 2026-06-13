@@ -69,7 +69,7 @@ Useful environment variables:
 python scripts/verify.py
 ```
 
-The verifier checks syntax, static assets, deterministic fallback model paths, and generated speech file behavior.
+The verifier checks syntax, static assets, Space metadata consistency, deterministic fallback model paths, and generated speech file behavior.
 
 `/api/model-budget` exposes numeric parameter counts for every model role and reports whether the full stack stays within the 4B Tiny Titan limit.
 

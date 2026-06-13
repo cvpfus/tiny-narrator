@@ -54,6 +54,37 @@ def verify_static_assets() -> None:
     )
 
 
+def front_matter_value(readme: str, key: str) -> str:
+    lines = readme.splitlines()
+    if not lines or lines[0] != "---":
+        return ""
+    for line in lines[1:]:
+        if line == "---":
+            break
+        name, separator, value = line.partition(":")
+        if separator and name.strip() == key:
+            return value.strip()
+    return ""
+
+
+def verify_space_metadata() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8").splitlines()
+
+    sdk_version = front_matter_value(readme, "sdk_version")
+    app_file = front_matter_value(readme, "app_file")
+    sdk = front_matter_value(readme, "sdk")
+
+    assert_true(sdk == "gradio", "Space metadata should declare the Gradio SDK")
+    assert_true(app_file == "app.py", "Space metadata should launch app.py")
+    assert_true(f"gradio=={sdk_version}" in requirements, "requirements.txt should pin Gradio to sdk_version")
+    for package in ["pydantic", "kokoro", "soundfile"]:
+        assert_true(
+            any(line.startswith(f"{package}>=") or line.startswith(f"{package}==") for line in requirements),
+            f"requirements.txt should include {package}",
+        )
+
+
 def verify_core_fallbacks() -> None:
     narration = app.reader_brain_core(
         node_type="heading",
@@ -265,6 +296,7 @@ def verify_routes() -> None:
 def main() -> None:
     py_compile.compile(str(ROOT / "app.py"), doraise=True)
     verify_static_assets()
+    verify_space_metadata()
     verify_core_fallbacks()
     verify_routes()
     print("Tiny Narrator verification passed.")
