@@ -297,6 +297,20 @@ def verify_routes() -> None:
         speech_check["sample_body"]["voice"] == app.READER_SETTINGS["default_voice"],
         "Speech demo check should use the default reader voice",
     )
+    reader_sample = client.post(reader_check["path"], json=reader_check["sample_body"])
+    assert_true(reader_sample.status_code == 200, "Reader-brain sample payload should be executable")
+    reader_sample_payload = reader_sample.json()
+    assert_true(reader_sample_payload["ok"], "Reader-brain sample payload should return ok")
+    assert_true("narration" in reader_sample_payload, "Reader-brain sample payload should return narration")
+
+    speech_sample = client.post(speech_check["path"], json=speech_check["sample_body"])
+    assert_true(speech_sample.status_code == 200, "Speech sample payload should be executable")
+    speech_sample_payload = speech_sample.json()
+    assert_true(speech_sample_payload["ok"], "Speech sample payload should return ok")
+    assert_true(
+        speech_sample_payload["audio_url"].startswith("/outputs/"),
+        "Speech sample payload should return an output audio URL",
+    )
 
     audit = client.get("/api/accessibility-audit")
     assert_true(audit.status_code == 200, "Accessibility audit route should return 200")
