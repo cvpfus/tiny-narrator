@@ -50,7 +50,7 @@ Start the app:
 python app.py
 ```
 
-Open the local URL printed by Gradio. The custom frontend calls `/api/reader-brain`, `/api/image-descriptions`, `/api/describe-image`, `/api/speak`, `/api/generate-image`, `/api/model-budget`, `/api/runtime-setup`, and `/api/demo-script`.
+Open the local URL printed by Gradio. The custom frontend calls `/api/reader-brain`, `/api/image-descriptions`, `/api/describe-image`, `/api/speak`, `/api/generate-image`, `/api/model-budget`, `/api/runtime-setup`, `/api/demo-script`, and `/api/accessibility-audit`.
 
 Useful environment variables:
 
@@ -74,6 +74,8 @@ The verifier checks syntax, static assets, deterministic fallback model paths, a
 `/api/runtime-setup` exposes the commands, environment values, and fallback paths used for the model stack so the demo can be reproduced from the same data the UI displays.
 
 `/api/demo-script` exposes a compact judge runbook with the visible actions and API checks that prove the submission claims.
+
+`/api/accessibility-audit` exposes structured evidence for semantic reading order, keyboard navigation, live narration, image alt text, transcript review, user-controlled playback, and fallback resilience.
 
 ## Screen Reader Mode
 

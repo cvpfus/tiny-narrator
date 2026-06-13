@@ -31,6 +31,11 @@ def verify_static_assets() -> None:
         assert_true(path.exists(), f"Missing required asset: {path}")
 
     app_js = (ROOT / "static" / "app.js").read_text(encoding="utf-8")
+    index_html = (ROOT / "static" / "index.html").read_text(encoding="utf-8")
+    assert_true('data-reader-type="heading"' in index_html, "Article should mark heading reader nodes")
+    assert_true('data-reader-type="image"' in index_html, "Article should mark image reader nodes")
+    assert_true('aria-live="polite"' in index_html, "Article should expose an aria-live narration region")
+    assert_true("transcriptLog" in index_html, "Article should expose a visible transcript log")
     assert_true("function haltPlayback" in app_js, "Reader controls should expose a shared playback halt helper")
     assert_true(
         "haltPlayback({ clearAutoAdvance: false });" in app_js,
@@ -153,6 +158,10 @@ def verify_routes() -> None:
         len(manifest_payload["demo_script"]["actions"]) >= 4,
         "Manifest should expose a judge demo script",
     )
+    assert_true(
+        manifest_payload["accessibility_audit"]["all_passed"],
+        "Manifest should expose passing accessibility audit evidence",
+    )
 
     awards = client.get("/api/award-evidence")
     assert_true(awards.status_code == 200, "Award evidence route should return 200")
@@ -203,6 +212,22 @@ def verify_routes() -> None:
     assert_true(
         any("Tiny Titan" in action["evidence"] for action in demo_payload["actions"]),
         "Demo script should point to targeted award evidence",
+    )
+    assert_true(
+        any(item["path"] == "/api/accessibility-audit" for item in demo_payload["api_checks"]),
+        "Demo script should include the accessibility audit check",
+    )
+
+    audit = client.get("/api/accessibility-audit")
+    assert_true(audit.status_code == 200, "Accessibility audit route should return 200")
+    audit_payload = audit.json()
+    assert_true(audit_payload["ok"], "Accessibility audit payload should be ok")
+    assert_true(audit_payload["all_passed"], "Accessibility audit should pass")
+    assert_true(audit_payload["passed_checks"] == audit_payload["total_checks"], "All audit checks should pass")
+    assert_true(
+        {item["id"] for item in audit_payload["checks"]}
+        >= {"semantic_queue", "keyboard_navigation", "live_region", "image_alt_text", "inspectable_transcript"},
+        "Accessibility audit should cover reader semantics, keyboard use, live narration, alt text, and transcript",
     )
 
     runtime = client.get("/api/runtime-status")

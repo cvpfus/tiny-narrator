@@ -30,6 +30,8 @@ Runtime setup is also data-backed. `/api/runtime-setup` lists the app command, l
 
 The judge runbook lives at `/api/demo-script`. It keeps the live presentation repeatable by pairing visible actions with API checks for health, model budget, runtime setup, runtime status, image descriptions, reader narration, and speech.
 
+Accessibility evidence lives at `/api/accessibility-audit`. It records the reader-mode choices that matter most for this prototype: semantic reading order, keyboard navigation, live narration, image alt text, transcript review, user-controlled playback, and fallback resilience.
+
 ## Reader Mode Behavior
 
 The frontend creates a reading queue from semantic nodes: headings, paragraphs, quotes, figures, captions, and controls. It speaks one item at a time, keeps keyboard focus synchronized with the active node, and exposes the current narration through an `aria-live` region.
