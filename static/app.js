@@ -220,14 +220,20 @@ function setActive(index) {
   currentStatus.textContent = `${node.type}, item ${currentIndex + 1} of ${nodes.length}`;
 }
 
-function stopAudio() {
+function haltPlayback({ clearAutoAdvance = true } = {}) {
   audio.pause();
   audio.removeAttribute("src");
   window.speechSynthesis?.cancel();
-  activeAutoAdvance = false;
+  if (clearAutoAdvance) {
+    activeAutoAdvance = false;
+  }
   activeSpeechSerial = 0;
   playing = false;
   controls.play.textContent = "Play";
+}
+
+function stopAudio() {
+  haltPlayback();
 }
 
 function maybeAutoAdvance(serial) {
@@ -314,6 +320,7 @@ async function postJson(url, payload) {
 async function narrate(index) {
   if (!enabled || !nodes[index]) return;
   const serial = ++requestSerial;
+  haltPlayback({ clearAutoAdvance: false });
   setActive(index);
   const node = nodes[index];
   runtimeStatus.textContent = "Thinking";
@@ -364,6 +371,7 @@ async function narrate(index) {
 async function summarizeCurrentSection() {
   if (!enabled) return;
   const serial = ++requestSerial;
+  haltPlayback({ clearAutoAdvance: false });
   const section = currentSectionPayload();
   runtimeStatus.textContent = "Summarizing";
   controls.summary.disabled = true;

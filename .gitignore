@@ -5,6 +5,7 @@ venv/
 outputs/*.wav
 outputs/*.mp3
 outputs/*.flac
+outputs/*.log
 .gradio/
 .env
 server.pid

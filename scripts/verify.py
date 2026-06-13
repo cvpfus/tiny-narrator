@@ -30,6 +30,13 @@ def verify_static_assets() -> None:
     for path in required:
         assert_true(path.exists(), f"Missing required asset: {path}")
 
+    app_js = (ROOT / "static" / "app.js").read_text(encoding="utf-8")
+    assert_true("function haltPlayback" in app_js, "Reader controls should expose a shared playback halt helper")
+    assert_true(
+        "haltPlayback({ clearAutoAdvance: false });" in app_js,
+        "New narration commands should interrupt current speech immediately",
+    )
+
 
 def verify_core_fallbacks() -> None:
     narration = app.reader_brain_core(

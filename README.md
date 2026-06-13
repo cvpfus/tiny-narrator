@@ -94,6 +94,8 @@ The reader bar exposes Kokoro voice selection and speaking speed controls. Defau
 
 Auto-advance is available as an opt-in reader control. It stays off by default so users keep manual control unless they choose continuous reading.
 
+Navigation commands interrupt current speech before starting the next request, matching the expectation that a screen reader responds immediately when the user moves.
+
 Reader-brain, image-description, speech, and image-generation responses include `elapsed_ms`. The session panel and transcript show recent latency so the Field Notes can discuss responsiveness with concrete numbers.
 
 The session panel also renders a manifest-backed demo checklist for Tiny Titan, Llama Champion, Off-Brand, and Field Notes evidence.
