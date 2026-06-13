@@ -42,6 +42,14 @@ const nodes = [...document.querySelectorAll(".speakable")].map((element, index) 
   },
 }));
 
+nodes.forEach((node) => {
+  if (!node.element.id) {
+    node.element.id = `reader-node-${node.index + 1}`;
+  }
+  node.element.dataset.readerPosition = String(node.index + 1);
+});
+readerBar.setAttribute("aria-controls", nodes.map((node) => node.element.id).join(" "));
+
 let enabled = false;
 let currentIndex = -1;
 let playing = false;
@@ -90,6 +98,60 @@ function renderTranscript() {
 function addTranscriptEntry(entry) {
   transcriptEntries = [entry, ...transcriptEntries].slice(0, 12);
   renderTranscript();
+}
+
+function readerTypeLabel(type) {
+  return {
+    heading: "Heading",
+    image: "Image",
+    paragraph: "Paragraph",
+    quote: "Quote",
+    section: "Section",
+  }[type] || roleLabel(type);
+}
+
+function readerItemStatus(node) {
+  return `${readerTypeLabel(node.type)}, item ${node.index + 1} of ${nodes.length}`;
+}
+
+function initialReaderIndex() {
+  if (!nodes.length) {
+    return -1;
+  }
+
+  const focusedNode = nodes.find((node) => node.element.contains(document.activeElement));
+  if (focusedNode) {
+    return focusedNode.index;
+  }
+
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+  const visibleNodes = nodes
+    .map((node) => {
+      const rect = node.element.getBoundingClientRect();
+      const inView = rect.bottom > 0 && rect.top < viewportHeight;
+      return {
+        node,
+        score: inView ? Math.abs(rect.top - viewportHeight * 0.25) : Number.POSITIVE_INFINITY,
+      };
+    })
+    .filter((item) => Number.isFinite(item.score));
+
+  return visibleNodes.reduce(
+    (best, item) => (item.score < best.score ? item : best),
+    { node: nodes[0], score: Number.POSITIVE_INFINITY },
+  ).node.index;
+}
+
+function isControlTarget(target) {
+  return target instanceof Element
+    && Boolean(target.closest("input, select, textarea, button, a, [contenteditable='true']"));
+}
+
+function shouldHandleReaderShortcut(event) {
+  if (event.key === "Escape") {
+    return true;
+  }
+  return !isControlTarget(event.target);
 }
 
 function currentSection() {
@@ -268,6 +330,9 @@ function setEnabled(nextValue) {
   readerBar.hidden = !enabled;
   modeStatus.textContent = enabled ? "Reader on" : "Reader off";
   if (enabled) {
+    if (currentIndex < 0) {
+      setActive(initialReaderIndex());
+    }
     announceIntro();
   } else {
     stopAudio();
@@ -277,7 +342,11 @@ function setEnabled(nextValue) {
 }
 
 function setActive(index) {
-  nodes.forEach((node) => node.element.classList.remove("reader-active"));
+  nodes.forEach((node) => {
+    node.element.classList.remove("reader-active");
+    node.element.removeAttribute("aria-current");
+    node.element.removeAttribute("tabindex");
+  });
   currentIndex = index;
   const node = nodes[currentIndex];
   if (!node) {
@@ -285,10 +354,11 @@ function setActive(index) {
     return;
   }
   node.element.classList.add("reader-active");
+  node.element.setAttribute("aria-current", "true");
   node.element.setAttribute("tabindex", "-1");
   node.element.focus({ preventScroll: true });
   node.element.scrollIntoView({ block: "center", behavior: "smooth" });
-  currentStatus.textContent = `${node.type}, item ${currentIndex + 1} of ${nodes.length}`;
+  currentStatus.textContent = readerItemStatus(node);
 }
 
 function haltPlayback({ clearAutoAdvance = true } = {}) {
@@ -480,8 +550,9 @@ async function summarizeCurrentSection() {
 function announceIntro() {
   const headings = nodes.filter((node) => node.type === "heading").length;
   const images = nodes.filter((node) => node.type === "image").length;
+  const currentItem = nodes[currentIndex] ? ` Current item: ${readerItemStatus(nodes[currentIndex]).toLowerCase()}.` : "";
   liveNarration.textContent =
-    `Screen reader mode on. Article contains ${headings} headings, ${images} images, and ${nodes.length} readable items. Press N for next, H for heading, I for image, S for section summary, or Space to begin.`;
+    `Screen reader mode on. Article contains ${headings} headings, ${images} images, and ${nodes.length} readable items.${currentItem} Press N for next, H for heading, I for image, S for section summary, or Space to begin.`;
   runtimeStatus.textContent = "Ready";
 }
 
@@ -491,6 +562,7 @@ function nextByType(type) {
   if (found) return narrate(found.index);
   const wrapped = nodes.find((node) => node.type === type);
   if (wrapped) return narrate(wrapped.index);
+  liveNarration.textContent = `No ${readerTypeLabel(type).toLowerCase()} items in this article.`;
 }
 
 toggle.addEventListener("click", () => setEnabled(!enabled));
@@ -499,6 +571,12 @@ controls.prev.addEventListener("click", () => narrate(Math.max(currentIndex - 1,
 controls.heading.addEventListener("click", () => nextByType("heading"));
 controls.image.addEventListener("click", () => nextByType("image"));
 controls.summary.addEventListener("click", () => summarizeCurrentSection());
+nodes.forEach((node) => {
+  node.element.addEventListener("click", (event) => {
+    if (!enabled || isControlTarget(event.target)) return;
+    narrate(node.index);
+  });
+});
 voiceControl.addEventListener("change", () => {
   voiceStatus.textContent = voiceControl.selectedOptions[0]?.textContent || "Custom voice";
 });
@@ -562,6 +640,7 @@ audio.addEventListener("ended", () => {
 
 document.addEventListener("keydown", (event) => {
   if (!enabled) return;
+  if (!shouldHandleReaderShortcut(event)) return;
   const key = event.key.toLowerCase();
   if ([" ", "n", "p", "h", "i", "s", "r", "escape"].includes(key)) {
     event.preventDefault();

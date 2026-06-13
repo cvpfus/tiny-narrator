@@ -43,6 +43,10 @@ def verify_static_assets() -> None:
         "haltPlayback({ clearAutoAdvance: false });" in app_js,
         "New narration commands should interrupt current speech immediately",
     )
+    assert_true("aria-current" in app_js, "Reader mode should expose the active item as current")
+    assert_true("shouldHandleReaderShortcut" in app_js, "Reader shortcuts should not hijack form controls")
+    assert_true("reader-node-" in app_js, "Reader nodes should receive stable ids for control context")
+    assert_true("narrate(node.index)" in app_js, "Reader mode should support click-to-read article items")
 
     submission = (ROOT / "SUBMISSION.md").read_text(encoding="utf-8")
     for target in ["Tiny Titan", "Llama Champion", "Off-Brand", "Field Notes"]:
