@@ -252,6 +252,7 @@ async function loadDemoScript() {
           <span>${escapeHtml(item.method)}</span>
           <code>${escapeHtml(item.path)}</code>
           <p>${escapeHtml(item.expect)}${item.sample_body ? " Sample body included." : ""}</p>
+          <code class="demo-api-command">${escapeHtml(item.curl)}</code>
         </li>
       `)
       .join("");

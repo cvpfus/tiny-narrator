@@ -45,6 +45,7 @@ def verify_static_assets() -> None:
     assert_true("copyEvidenceButton" in index_html, "Article should expose a copyable evidence bundle button")
     assert_true("loadDemoScript" in app_js, "Frontend should render the structured demo script")
     assert_true("payload.api_checks" in app_js, "Frontend should render structured demo API checks")
+    assert_true("demo-api-command" in app_js, "Frontend should render copyable demo commands")
     assert_true("/api/evidence-bundle" in app_js, "Frontend should fetch the evidence bundle for copying")
     assert_true("function haltPlayback" in app_js, "Reader controls should expose a shared playback halt helper")
     assert_true(
@@ -343,6 +344,14 @@ def verify_routes() -> None:
     assert_true(
         all(item.get("sample_body") for item in demo_payload["api_checks"] if item["method"] == "POST"),
         "Every POST demo check should include an executable sample body",
+    )
+    assert_true(
+        all(item["curl"].startswith("curl ") for item in demo_payload["api_checks"]),
+        "Every demo API check should include a curl command",
+    )
+    assert_true(
+        "-d '" in reader_check["curl"] and "/api/reader-brain" in reader_check["curl"],
+        "Reader-brain curl command should include the sample JSON body",
     )
     reader_sample = client.post(reader_check["path"], json=reader_check["sample_body"])
     assert_true(reader_sample.status_code == 200, "Reader-brain sample payload should be executable")

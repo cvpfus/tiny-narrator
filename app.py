@@ -213,7 +213,48 @@ def runtime_setup_core() -> dict[str, Any]:
     }
 
 
+def demo_curl_command(check: dict[str, Any]) -> str:
+    url = f"http://localhost:7860{check['path']}"
+    if check["method"] == "GET":
+        return f"curl {url}"
+    sample_body = json.dumps(check["sample_body"], separators=(",", ":"))
+    return f"curl -X POST {url} -H \"Content-Type: application/json\" -d '{sample_body}'"
+
+
 def demo_script_core() -> dict[str, Any]:
+    api_checks = [
+        {"method": "GET", "path": "/api/health", "expect": "custom Gradio Server app and model manifest"},
+        {"method": "GET", "path": "/api/model-budget", "expect": "all_models_within_limit is true"},
+        {"method": "GET", "path": "/api/runtime-setup", "expect": "llama.cpp, Kokoro, vision, and image paths"},
+        {"method": "GET", "path": "/api/runtime-status", "expect": "online or fallback-ready runtime labels"},
+        {"method": "GET", "path": "/api/accessibility-audit", "expect": "all reader-mode checks pass"},
+        {"method": "GET", "path": "/api/image-descriptions", "expect": "three article image descriptions"},
+        {"method": "GET", "path": "/api/submission-readiness", "expect": "all submission readiness checks pass"},
+        {
+            "method": "POST",
+            "path": "/api/reader-brain",
+            "expect": "concise narration or fallback narration",
+            "sample_body": {
+                "node_type": "heading",
+                "text": "The model map",
+                "position": "item 4 of 10",
+                "mode": "narrate",
+            },
+        },
+        {
+            "method": "POST",
+            "path": "/api/speak",
+            "expect": "Kokoro audio or audible browser fallback path",
+            "sample_body": {
+                "text": "Heading. The model map.",
+                "voice": READER_SETTINGS["default_voice"],
+                "speed": READER_SETTINGS["default_speed"],
+            },
+        },
+    ]
+    for check in api_checks:
+        check["curl"] = demo_curl_command(check)
+
     return {
         "ok": True,
         "title": "Tiny Narrator judge demo",
@@ -245,36 +286,7 @@ def demo_script_core() -> dict[str, Any]:
                 "evidence": "Tiny Titan, Llama Champion, Off-Brand, and Field Notes evidence is visible.",
             },
         ],
-        "api_checks": [
-            {"method": "GET", "path": "/api/health", "expect": "custom Gradio Server app and model manifest"},
-            {"method": "GET", "path": "/api/model-budget", "expect": "all_models_within_limit is true"},
-            {"method": "GET", "path": "/api/runtime-setup", "expect": "llama.cpp, Kokoro, vision, and image paths"},
-            {"method": "GET", "path": "/api/runtime-status", "expect": "online or fallback-ready runtime labels"},
-            {"method": "GET", "path": "/api/accessibility-audit", "expect": "all reader-mode checks pass"},
-            {"method": "GET", "path": "/api/image-descriptions", "expect": "three article image descriptions"},
-            {"method": "GET", "path": "/api/submission-readiness", "expect": "all submission readiness checks pass"},
-            {
-                "method": "POST",
-                "path": "/api/reader-brain",
-                "expect": "concise narration or fallback narration",
-                "sample_body": {
-                    "node_type": "heading",
-                    "text": "The model map",
-                    "position": "item 4 of 10",
-                    "mode": "narrate",
-                },
-            },
-            {
-                "method": "POST",
-                "path": "/api/speak",
-                "expect": "Kokoro audio or audible browser fallback path",
-                "sample_body": {
-                    "text": "Heading. The model map.",
-                    "voice": READER_SETTINGS["default_voice"],
-                    "speed": READER_SETTINGS["default_speed"],
-                },
-            },
-        ],
+        "api_checks": api_checks,
     }
 
 

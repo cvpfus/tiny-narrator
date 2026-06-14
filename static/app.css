@@ -465,6 +465,16 @@ dd {
   font-size: 0.78rem;
 }
 
+.demo-api-command {
+  grid-column: 1 / -1;
+  display: block;
+  padding: 8px;
+  border-radius: 6px;
+  background: #f7f3ee;
+  color: var(--ink);
+  white-space: normal;
+}
+
 .budget-list {
   display: grid;
   gap: 8px;
