@@ -135,6 +135,6 @@ A submission-readiness panel reads `/api/submission-readiness`, giving judges on
 
 The Copy Evidence button reads `/api/evidence-bundle` and copies the core judge receipts as formatted JSON for quick review or submission notes.
 
-A runtime-plan panel reads `/api/runtime-setup` and summarizes each model path's runtime, setup command, and fallback, keeping the live demo honest about what is online and what is deterministic.
+A runtime-plan panel reads `/api/runtime-setup` and summarizes each model path's runtime, setup command, and fallback, keeping the live demo honest about what is online and what is deterministic. Runtime setup commands have copy controls with the same clipboard fallback messaging as judge API commands.
 
 `/api/runtime-status` performs a short readiness check for llama.cpp and local speech dependencies, then reports which fallback paths are ready for a live demo. The session panel renders live status details for reader brain, vision, speech, and image generation.

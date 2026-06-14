@@ -396,6 +396,7 @@ async function loadRuntimeSetup() {
             <span class="runtime-pill">${escapeHtml(step.runtime)}</span>
           </div>
           <code class="runtime-command">${escapeHtml(step.command)}</code>
+          <button class="runtime-command-copy" type="button" data-command="${escapeHtml(step.command)}">Copy command</button>
           <p>${escapeHtml(step.fallback)}</p>
         </li>
       `)
@@ -821,6 +822,17 @@ demoApiCheckList.addEventListener("click", async (event) => {
     "Demo command copied.",
     "Demo command is empty.",
     "Command is visible, but clipboard access is unavailable.",
+  );
+});
+runtimeSetupList.addEventListener("click", async (event) => {
+  const button = event.target.closest(".runtime-command-copy");
+  if (!button) return;
+  const command = button.dataset.command || "";
+  await copyTextToClipboard(
+    command,
+    "Runtime setup command copied.",
+    "Runtime setup command is empty.",
+    "Runtime setup command is visible, but clipboard access is unavailable.",
   );
 });
 controls.play.addEventListener("click", () => {
