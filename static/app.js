@@ -255,7 +255,9 @@ async function loadDemoScript() {
           <code>${escapeHtml(item.path)}</code>
           <p>${escapeHtml(item.expect)}${item.sample_body ? " Sample body included." : ""}</p>
           <code class="demo-api-command">${escapeHtml(item.curl)}</code>
+          <button class="demo-command-copy" type="button" data-command="${escapeHtml(item.curl)}">Copy curl</button>
           <code class="demo-api-command">${escapeHtml(item.powershell)}</code>
+          <button class="demo-command-copy" type="button" data-command="${escapeHtml(item.powershell)}">Copy PowerShell</button>
         </li>
       `)
       .join("");
@@ -729,6 +731,17 @@ copyEvidenceButton.addEventListener("click", async () => {
   } catch (error) {
     liveNarration.textContent = `Evidence bundle failed: ${error.message}`;
   }
+});
+demoApiCheckList.addEventListener("click", async (event) => {
+  const button = event.target.closest(".demo-command-copy");
+  if (!button) return;
+  const command = button.dataset.command || "";
+  if (!navigator.clipboard) {
+    liveNarration.textContent = "Command is visible, but clipboard access is unavailable.";
+    return;
+  }
+  await navigator.clipboard.writeText(command);
+  liveNarration.textContent = "Demo command copied.";
 });
 controls.play.addEventListener("click", () => {
   if (!enabled) return;

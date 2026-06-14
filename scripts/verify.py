@@ -50,6 +50,7 @@ def verify_static_assets() -> None:
     assert_true("loadDemoScript" in app_js, "Frontend should render the structured demo script")
     assert_true("payload.api_checks" in app_js, "Frontend should render structured demo API checks")
     assert_true("demo-api-command" in app_js, "Frontend should render copyable demo commands")
+    assert_true("demo-command-copy" in app_js, "Frontend should expose copy buttons for demo commands")
     assert_true("item.powershell" in app_js, "Frontend should render PowerShell-friendly demo commands")
     assert_true("/api/evidence-bundle" in app_js, "Frontend should fetch the evidence bundle for copying")
     assert_true("function haltPlayback" in app_js, "Reader controls should expose a shared playback halt helper")
