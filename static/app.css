@@ -286,8 +286,16 @@ dd {
   margin-top: 22px;
 }
 
-.award-header {
+.award-header,
+.demo-script-header {
   margin-top: 22px;
+}
+
+.demo-script-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .submission-header {
@@ -318,7 +326,8 @@ dd {
 .budget-header span,
 .runtime-header span,
 .image-receipt-header span,
-.submission-header span {
+.submission-header span,
+.demo-script-header span {
   color: var(--accent-strong);
   font-size: 0.76rem;
   font-weight: 850;
@@ -374,11 +383,49 @@ dd {
   list-style: none;
 }
 
+.demo-script-list {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0 0;
+  padding-left: 20px;
+}
+
 .award-list li {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 10px 12px;
   background: var(--surface);
+}
+
+.demo-script-list li {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--surface);
+}
+
+.demo-script-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.demo-script-title span:last-child {
+  border-radius: 999px;
+  background: rgba(31, 111, 104, 0.12);
+  color: var(--accent-strong);
+  padding: 2px 8px;
+  font-size: 0.7rem;
+}
+
+.demo-script-list p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
 }
 
 .budget-list {

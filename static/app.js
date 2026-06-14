@@ -17,6 +17,8 @@ const autoAdvanceControl = document.querySelector("#autoAdvanceControl");
 const transcriptLog = document.querySelector("#transcriptLog");
 const copyTranscriptButton = document.querySelector("#copyTranscriptButton");
 const clearTranscriptButton = document.querySelector("#clearTranscriptButton");
+const demoScriptStatus = document.querySelector("#demoScriptStatus");
+const demoScriptList = document.querySelector("#demoScriptList");
 const awardEvidenceList = document.querySelector("#awardEvidenceList");
 const submissionReadinessStatus = document.querySelector("#submissionReadinessStatus");
 const submissionReadinessList = document.querySelector("#submissionReadinessList");
@@ -221,6 +223,36 @@ async function loadAwardEvidence() {
           <span class="award-status">offline</span>
         </div>
         <p class="award-evidence">Award evidence is unavailable.</p>
+      </li>
+    `;
+  }
+}
+
+async function loadDemoScript() {
+  try {
+    const payload = await postJson("/api/demo-script");
+    demoScriptStatus.textContent = `${payload.estimated_minutes} min`;
+    demoScriptList.innerHTML = payload.actions
+      .map((item) => `
+        <li>
+          <div class="demo-script-title">
+            <span>${escapeHtml(item.label)}</span>
+            <span>${escapeHtml(`Step ${item.step}`)}</span>
+          </div>
+          <p>${escapeHtml(item.action)}</p>
+          <p>${escapeHtml(item.evidence)}</p>
+        </li>
+      `)
+      .join("");
+  } catch {
+    demoScriptStatus.textContent = "Unavailable";
+    demoScriptList.innerHTML = `
+      <li>
+        <div class="demo-script-title">
+          <span>Judge runbook</span>
+          <span>offline</span>
+        </div>
+        <p>The structured demo script is unavailable.</p>
       </li>
     `;
   }
@@ -683,6 +715,7 @@ controls.play.addEventListener("click", () => {
 });
 
 loadManifest();
+loadDemoScript();
 loadAwardEvidence();
 loadSubmissionReadiness();
 loadModelBudget();
