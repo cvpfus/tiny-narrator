@@ -38,6 +38,7 @@ const controls = {
   heading: document.querySelector("#headingButton"),
   image: document.querySelector("#imageButton"),
   summary: document.querySelector("#summaryButton"),
+  stop: document.querySelector("#stopButton"),
 };
 
 const nodes = [...document.querySelectorAll(".speakable")].map((element, index) => ({
@@ -675,6 +676,10 @@ controls.prev.addEventListener("click", () => narrate(Math.max(currentIndex - 1,
 controls.heading.addEventListener("click", () => nextByType("heading"));
 controls.image.addEventListener("click", () => nextByType("image"));
 controls.summary.addEventListener("click", () => summarizeCurrentSection());
+controls.stop.addEventListener("click", () => {
+  stopAudio();
+  liveNarration.textContent = "Reading stopped.";
+});
 nodes.forEach((node) => {
   node.element.addEventListener("click", (event) => {
     if (!enabled || isControlTarget(event.target)) return;
@@ -772,8 +777,5 @@ document.addEventListener("keydown", (event) => {
   if (key === "i") controls.image.click();
   if (key === "s") controls.summary.click();
   if (key === "r" && currentIndex >= 0) narrate(currentIndex);
-  if (key === "escape") {
-    stopAudio();
-    liveNarration.textContent = "Reading stopped.";
-  }
+  if (key === "escape") controls.stop.click();
 });

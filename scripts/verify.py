@@ -37,7 +37,10 @@ def verify_static_assets() -> None:
     assert_true('data-reader-type="heading"' in index_html, "Article should mark heading reader nodes")
     assert_true('data-reader-type="image"' in index_html, "Article should mark image reader nodes")
     assert_true('aria-live="polite"' in index_html, "Article should expose an aria-live narration region")
+    for shortcut in ['aria-keyshortcuts="Space"', 'aria-keyshortcuts="N"', 'aria-keyshortcuts="S"']:
+        assert_true(shortcut in index_html, f"Reader controls should expose {shortcut}")
     assert_true("transcriptLog" in index_html, "Article should expose a visible transcript log")
+    assert_true("stopButton" in index_html, "Reader controls should expose a visible stop command")
     assert_true("demoScriptList" in index_html, "Article should expose the judge demo runbook")
     assert_true("demoApiCheckList" in index_html, "Article should expose judge API evidence checks")
     assert_true("imageReceiptList" in index_html, "Article should expose generated image receipts")
@@ -55,6 +58,7 @@ def verify_static_assets() -> None:
     )
     assert_true("aria-current" in app_js, "Reader mode should expose the active item as current")
     assert_true("shouldHandleReaderShortcut" in app_js, "Reader shortcuts should not hijack form controls")
+    assert_true("controls.stop.click()" in app_js, "Escape should route through the visible stop command")
     assert_true("reader-node-" in app_js, "Reader nodes should receive stable ids for control context")
     assert_true("narrate(node.index)" in app_js, "Reader mode should support click-to-read article items")
 
@@ -237,9 +241,17 @@ def verify_routes() -> None:
     assert_true(manifest.status_code == 200, "Article manifest route should return 200")
     manifest_payload = manifest.json()
     assert_true("Tiny Titan" in manifest_payload["bonus_targets"], "Manifest should include Tiny Titan target")
+    reader_controls = manifest_payload["reader_controls"]
+    summary_shortcut = next((item for item in reader_controls if item["key"] == "S"), None)
+    assert_true(summary_shortcut is not None, "Manifest should include summary shortcut")
     assert_true(
-        {"key": "S", "action": "Summarize current section"} in manifest_payload["reader_controls"],
-        "Manifest should include summary shortcut",
+        summary_shortcut["action"] == "Summarize current section"
+        and summary_shortcut["aria_keyshortcuts"] == "S",
+        "Manifest summary shortcut should include action and aria-keyshortcuts value",
+    )
+    assert_true(
+        {item["aria_keyshortcuts"] for item in reader_controls} >= {"Space", "N", "P", "H", "I", "S", "R", "Escape"},
+        "Manifest should expose aria-keyshortcuts values for reader controls",
     )
     assert_true(
         manifest_payload["models"]["speech"]["id"] == "hexgrad/Kokoro-82M",

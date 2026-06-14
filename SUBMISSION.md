@@ -48,7 +48,7 @@ The prototype is designed for a live hackathon demo: every model-facing path has
 
 The checks in `/api/demo-script` include curl and PowerShell-friendly `curl.exe` commands generated from `PUBLIC_BASE_URL`, and the POST checks include sample JSON bodies for `/api/reader-brain` and `/api/speak`.
 
-The accessibility audit also documents two reader-mode details that matter during judging: the active item is exposed as a reader cursor with focus, visible outline, stable id, and `aria-current`; global shortcuts ignore form controls so voice, speed, and auto-advance settings remain usable while reader mode is active.
+The accessibility audit also documents reader-mode details that matter during judging: the active item is exposed as a reader cursor with focus, visible outline, stable id, and `aria-current`; global shortcuts ignore form controls so voice, speed, and auto-advance settings remain usable while reader mode is active; reader controls expose `aria-keyshortcuts` and a visible Stop command for Escape.
 
 The image receipts keep the generated-asset claim inspectable: each article illustration names the planned `black-forest-labs/FLUX.2-klein-4B` path, prompt, seed, and bundled fallback asset.
 
