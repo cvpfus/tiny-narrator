@@ -177,51 +177,6 @@ select:focus-visible {
 
 .article { min-width: 0; }
 
-.evidence-shell {
-  display: grid;
-  gap: 28px;
-  width: min(1040px, calc(100% - 40px));
-  margin: 56px auto 120px;
-}
-
-.evidence-hero {
-  padding-bottom: 12px;
-  border-bottom: 2px solid var(--ink);
-}
-
-.evidence-hero h1 {
-  max-width: 12ch;
-}
-
-.evidence-section {
-  border: 1px solid var(--line);
-  border-top: 3px solid var(--ink);
-  background: var(--surface);
-  padding: 22px 20px;
-}
-
-.evidence-section h2 {
-  margin: 0;
-  padding: 0;
-  font-family: var(--mono);
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--ink-soft);
-}
-
-.evidence-section h2::before { display: none; }
-
-.evidence-link {
-  color: var(--ink);
-  text-decoration: none;
-}
-
-.evidence-link:hover {
-  border-color: var(--accent);
-}
-
 /* ─── ARTICLE TYPOGRAPHY ─── */
 .kicker {
   display: inline-block;

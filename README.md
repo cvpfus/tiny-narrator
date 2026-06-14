@@ -52,7 +52,7 @@ Start the app:
 python app.py
 ```
 
-Open the local URL printed by Gradio. The article page calls `/api/reader-brain`, `/api/image-descriptions`, `/api/describe-image`, and `/api/speak`. The `/evidence` page calls `/api/model-budget`, `/api/runtime-setup`, `/api/runtime-status`, `/api/demo-script`, `/api/accessibility-audit`, `/api/submission-readiness`, and `/api/evidence-bundle`; `/api/generate-image` remains available as an API placeholder.
+Open the local URL printed by Gradio. The article page calls `/api/reader-brain`, `/api/image-descriptions`, `/api/describe-image`, `/api/speak`, and `/api/model-budget`; the remaining evidence endpoints stay available for docs and submission checks.
 
 Useful environment variables:
 
@@ -76,7 +76,7 @@ The verifier checks syntax, static assets, Space metadata consistency, determini
 
 `/api/runtime-setup` exposes the commands, environment values, and fallback paths used for the model stack so the demo can be reproduced from the same data the UI displays.
 
-`/api/demo-script` exposes a compact judge runbook with the visible actions, API checks, sample bodies, curl commands, and PowerShell-friendly `curl.exe` commands that prove the submission claims. The commands use `PUBLIC_BASE_URL`, and `/evidence` renders those actions and API evidence checks as the Judge Runbook with per-command copy buttons.
+`/api/demo-script` exposes a compact judge runbook with the visible actions, API checks, sample bodies, curl commands, and PowerShell-friendly `curl.exe` commands that prove the submission claims. The commands use `PUBLIC_BASE_URL` so they can be copied from the API response or submission notes.
 
 `/api/accessibility-audit` exposes structured evidence for semantic reading order, keyboard navigation, reader cursor state, shortcut safety, live narration, image alt text, transcript review, user-controlled playback, and fallback resilience.
 
@@ -86,7 +86,7 @@ The verifier checks syntax, static assets, Space metadata consistency, determini
 
 The readiness rollup only passes the demo API check when POST entries include executable sample bodies.
 
-`/api/evidence-bundle` returns a copyable JSON bundle of the main judging receipts, including schema version, UTC generation time, `PUBLIC_BASE_URL`, runtime status, and the submission readiness rollup. The `/evidence` page includes a Copy Evidence button that writes this bundle to the clipboard.
+`/api/evidence-bundle` returns a JSON bundle of the main judging receipts, including schema version, UTC generation time, `PUBLIC_BASE_URL`, runtime status, and the submission readiness rollup.
 
 ## Screen Reader Mode
 
@@ -103,7 +103,7 @@ The frontend builds a reading queue from semantic article nodes. When screen-rea
 
 Each readable node is sent to the reader brain for concise narration, then Kokoro generates speech. If a model is unavailable, the app uses deterministic fallbacks so the demo remains navigable.
 
-The session panel stays reader-first and renders the same semantic reader queue used by playback, including the active item marker, total item count, and click-to-read controls for individual queue items.
+The session panel stays reader-first: it shows current reader state, live narration, transcript controls, latency, and the tiny-model stack. The semantic reader queue remains internal to playback and keyboard navigation.
 
 When screen-reader mode turns on, it selects the focused or most visible article item, assigns stable reader-node ids, and marks the active item with `aria-current`. Clicking a readable article item while the mode is on reads that item directly.
 
@@ -115,7 +115,7 @@ The session panel keeps a transcript of recent narration with reader position, r
 
 Images start with meaningful fallback `alt` text in the HTML. Image descriptions are then preloaded into a local cache and written into the page's real `img alt` attributes. When the planned MiniCPM-V runtime is unavailable, deterministic alt-text fallbacks keep the screen-reader path usable.
 
-The `/evidence` page renders image receipts from `/api/image-descriptions`, so judges can inspect the prompt, seed, planned <=4B image model, and fallback status behind each bundled article illustration without lengthening the reader sidebar.
+`/api/image-descriptions` exposes image receipts so judges can inspect the prompt, seed, planned <=4B image model, and fallback status behind each bundled article illustration without lengthening the reader sidebar.
 
 Kokoro remains the planned tiny-model TTS path. During local demos, if the server-side Kokoro call falls back, the browser speech engine can read the same transcript so screen-reader mode still produces audible feedback.
 
@@ -129,12 +129,12 @@ Navigation commands interrupt current speech before starting the next request, m
 
 Reader-brain, image-description, speech, and image-generation responses include `elapsed_ms`. The session panel and transcript show recent latency so the Field Notes can discuss responsiveness with concrete numbers.
 
-The `/evidence` page renders the judge runbook and API evidence checks from `/api/demo-script`, plus manifest-backed evidence for Tiny Titan, Llama Champion, Off-Brand, and Field Notes. A model-budget panel reads `/api/model-budget` so judges can see each role's parameter count and Tiny Titan pass status in the live app.
+The sidebar model stack reads `/api/model-budget` so judges can see each role's model id, runtime, parameter count, and Tiny Titan pass status in the live app.
 
-The `/evidence` page reads `/api/submission-readiness`, giving judges one compact rollup of the claims the live app can prove.
+`/api/submission-readiness` gives judges one compact rollup of the claims the live app can prove.
 
-The Copy Evidence button on `/evidence` reads `/api/evidence-bundle` and copies the core judge receipts as formatted JSON for quick review or submission notes.
+`/api/evidence-bundle` returns the core judge receipts as formatted JSON for quick review or submission notes.
 
-A runtime-plan panel on `/evidence` reads `/api/runtime-setup` and summarizes each model path's runtime, setup command, and fallback, keeping the live demo honest about what is online and what is deterministic. Runtime setup commands have copy controls with the same clipboard fallback messaging as judge API commands.
+`/api/runtime-setup` summarizes each model path's runtime, setup command, and fallback, keeping the live demo honest about what is online and what is deterministic.
 
-`/api/runtime-status` performs a short readiness check for llama.cpp and local speech dependencies, then reports which fallback paths are ready for a live demo. The `/evidence` page renders live status details for reader brain, vision, speech, and image generation.
+`/api/runtime-status` performs a short readiness check for llama.cpp and local speech dependencies, then reports which fallback paths are ready for a live demo.

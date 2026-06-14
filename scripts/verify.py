@@ -23,10 +23,8 @@ def verify_static_assets() -> None:
         ROOT / "LICENSE",
         ROOT / "SUBMISSION.md",
         ROOT / "static" / "index.html",
-        ROOT / "static" / "evidence.html",
         ROOT / "static" / "app.css",
         ROOT / "static" / "app.js",
-        ROOT / "static" / "evidence.js",
         ROOT / "static" / "generated" / "desk-reader.svg",
         ROOT / "static" / "generated" / "model-map.svg",
         ROOT / "static" / "generated" / "field-notes.svg",
@@ -35,9 +33,7 @@ def verify_static_assets() -> None:
         assert_true(path.exists(), f"Missing required asset: {path}")
 
     app_js = (ROOT / "static" / "app.js").read_text(encoding="utf-8")
-    evidence_js = (ROOT / "static" / "evidence.js").read_text(encoding="utf-8")
     index_html = (ROOT / "static" / "index.html").read_text(encoding="utf-8")
-    evidence_html = (ROOT / "static" / "evidence.html").read_text(encoding="utf-8")
     assert_true('data-reader-type="heading"' in index_html, "Article should mark heading reader nodes")
     assert_true('data-reader-type="image"' in index_html, "Article should mark image reader nodes")
     assert_true('alt=""' not in index_html, "Article images should not start with empty alt text")
@@ -49,10 +45,12 @@ def verify_static_assets() -> None:
     for shortcut in ['aria-keyshortcuts="Space"', 'aria-keyshortcuts="N"', 'aria-keyshortcuts="R"', 'aria-keyshortcuts="S"']:
         assert_true(shortcut in index_html, f"Reader controls should expose {shortcut}")
     assert_true("transcriptLog" in index_html, "Article should expose a visible transcript log")
-    assert_true("readerQueueList" in index_html, "Article should expose the semantic reader queue")
+    assert_true("readerQueueList" not in index_html, "Article sidebar should not include a visible reader queue")
     assert_true("repeatButton" in index_html, "Reader controls should expose a visible repeat command")
     assert_true("stopButton" in index_html, "Reader controls should expose a visible stop command")
-    for moved_id in [
+    assert_true("modelStackList" in index_html, "Article sidebar should expose the model stack panel")
+    assert_true("modelBudgetStatus" in index_html, "Article sidebar should expose model stack status")
+    for removed_id in [
         "demoScriptList",
         "demoApiCheckList",
         "imageReceiptList",
@@ -62,23 +60,14 @@ def verify_static_assets() -> None:
         "modelBudgetList",
         "runtimeSetupList",
     ]:
-        assert_true(moved_id not in index_html, f"Article sidebar should not include moved evidence panel: {moved_id}")
-        assert_true(moved_id in evidence_html, f"Evidence page should include moved evidence panel: {moved_id}")
+        assert_true(removed_id not in index_html, f"Article sidebar should not include removed evidence panel: {removed_id}")
     assert_true("loadDemoScript" not in app_js, "Article frontend should not render the structured demo script")
-    assert_true("loadDemoScript" in evidence_js, "Evidence frontend should render the structured demo script")
-    assert_true("runtimeStatusList.innerHTML" in evidence_js, "Evidence frontend should render live runtime status details")
-    assert_true("runtime-command" in evidence_js, "Evidence frontend should render runtime setup commands")
-    assert_true("runtime-command-copy" in evidence_js, "Evidence frontend should expose copy buttons for runtime setup commands")
-    assert_true("runtimeSetupList.addEventListener" in evidence_js, "Runtime setup command copy actions should be delegated")
-    assert_true("payload.api_checks" in evidence_js, "Evidence frontend should render structured demo API checks")
-    assert_true("demo-api-command" in evidence_js, "Evidence frontend should render copyable demo commands")
-    assert_true("demo-command-copy" in evidence_js, "Evidence frontend should expose copy buttons for demo commands")
-    assert_true("item.powershell" in evidence_js, "Evidence frontend should render PowerShell-friendly demo commands")
-    assert_true("Tiny Titan pass" in evidence_js, "Evidence frontend should render per-model Tiny Titan pass labels")
-    assert_true("/api/evidence-bundle" in evidence_js, "Evidence frontend should fetch the evidence bundle for copying")
-    assert_true("/evidence" in index_html, "Article page should link to the dedicated evidence page")
+    assert_true("loadModelBudget" in app_js, "Article frontend should render the model stack panel")
+    assert_true("/api/model-budget" in app_js, "Article frontend should fetch model budget data")
+    assert_true("modelStackList.innerHTML" in app_js, "Article frontend should render model stack items")
+    assert_true("Tiny Titan pass" in app_js, "Article frontend should render per-model Tiny Titan pass labels")
+    assert_true("/evidence" not in index_html, "Article page should not link to a removed evidence page")
     assert_true("copyTextToClipboard" in app_js, "Frontend copy actions should share clipboard fallback handling")
-    assert_true("copyTextToClipboard" in evidence_js, "Evidence copy actions should share clipboard fallback handling")
     assert_true(
         "Transcript is visible, but clipboard access is unavailable." in app_js,
         "Transcript copy should report unavailable clipboard access",
@@ -99,10 +88,8 @@ def verify_static_assets() -> None:
     assert_true("controls.repeat.click()" in app_js, "R should route through the visible repeat command")
     assert_true("controls.stop.click()" in app_js, "Escape should route through the visible stop command")
     assert_true("reader-node-" in app_js, "Reader nodes should receive stable ids for control context")
-    assert_true("renderReaderQueue" in app_js, "Frontend should render the semantic reader queue")
-    assert_true("readerQueueStatus.textContent" in app_js, "Reader queue should expose item count")
-    assert_true("reader-queue-play" in app_js, "Reader queue should expose click-to-read controls")
-    assert_true("readerQueueList.addEventListener" in app_js, "Reader queue should handle click-to-read actions")
+    assert_true("renderReaderQueue" not in app_js, "Frontend should not render a visible reader queue")
+    assert_true("readerQueueList" not in app_js, "Frontend should not bind a visible reader queue")
     assert_true("narrate(node.index)" in app_js, "Reader mode should support click-to-read article items")
 
     submission = (ROOT / "SUBMISSION.md").read_text(encoding="utf-8")
@@ -255,27 +242,11 @@ def verify_routes() -> None:
     assert_true("speedValue" in home.text, "Home route should include speed value output")
     assert_true("autoAdvanceControl" in home.text, "Home route should include auto-advance control")
     assert_true("transcriptLog" in home.text, "Home route should include transcript log")
-    assert_true("readerQueueList" in home.text, "Home route should include reader queue list")
-    assert_true("/evidence" in home.text, "Home route should link to the evidence page")
+    assert_true("readerQueueList" not in home.text, "Home route should not include reader queue list")
+    assert_true("modelBudgetStatus" in home.text, "Home route should include model stack status")
+    assert_true("modelStackList" in home.text, "Home route should include model stack list")
+    assert_true("/evidence" not in home.text, "Home route should not link to a removed evidence page")
     assert_true("copyEvidenceButton" not in home.text, "Home route should keep judge evidence off the reader sidebar")
-
-    evidence_page = client.get("/evidence")
-    assert_true(evidence_page.status_code == 200, "Evidence route should return 200")
-    assert_true("Judging receipts for Tiny Narrator" in evidence_page.text, "Evidence route should include evidence title")
-    assert_true("demoScriptStatus" in evidence_page.text, "Evidence route should include demo script status")
-    assert_true("demoScriptList" in evidence_page.text, "Evidence route should include demo script list")
-    assert_true("demoApiCheckList" in evidence_page.text, "Evidence route should include demo API check list")
-    assert_true("awardEvidenceList" in evidence_page.text, "Evidence route should include award evidence list")
-    assert_true("submissionReadinessStatus" in evidence_page.text, "Evidence route should include submission readiness status")
-    assert_true("submissionReadinessList" in evidence_page.text, "Evidence route should include submission readiness list")
-    assert_true("copyEvidenceButton" in evidence_page.text, "Evidence route should include copy evidence button")
-    assert_true("budgetStatus" in evidence_page.text, "Evidence route should include model budget status")
-    assert_true("modelBudgetList" in evidence_page.text, "Evidence route should include model budget list")
-    assert_true("runtimeStatusList" in evidence_page.text, "Evidence route should include runtime status list")
-    assert_true("runtimeSetupStatus" in evidence_page.text, "Evidence route should include runtime setup status")
-    assert_true("runtimeSetupList" in evidence_page.text, "Evidence route should include runtime setup list")
-    assert_true("imageReceiptStatus" in evidence_page.text, "Evidence route should include image receipt status")
-    assert_true("imageReceiptList" in evidence_page.text, "Evidence route should include image receipt list")
 
     health = client.get("/api/health")
     assert_true(health.status_code == 200, "Health route should return 200")

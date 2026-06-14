@@ -6,7 +6,7 @@ Tiny Narrator turns an article into a guided screen-reader experience using smal
 
 ## Short description
 
-Tiny Narrator is a custom Gradio Server app that looks like an article/blog reader until screen-reader mode is switched on. In reader mode, the app builds and displays a semantic reading queue with click-to-read controls, narrates headings and paragraphs, describes generated images, summarizes the current section, speaks with Kokoro, and keeps a visible transcript of the spoken path with reader position, runtime, and latency.
+Tiny Narrator is a custom Gradio Server app that looks like an article/blog reader until screen-reader mode is switched on. In reader mode, the app builds an internal semantic reading queue, narrates headings and paragraphs, describes generated images, summarizes the current section, speaks with Kokoro, and keeps a visible transcript of the spoken path with reader position, runtime, and latency.
 
 The prototype is designed for a live hackathon demo: every model-facing path has a deterministic fallback, runtime readiness is labeled in the UI, and the repo exposes machine-readable evidence for model size, setup, demo flow, and accessibility behavior.
 
@@ -32,15 +32,15 @@ The prototype is designed for a live hackathon demo: every model-facing path has
 2. Turn on screen-reader mode and press `Space` or `Next` to narrate the first semantic node.
 3. Use `Heading`, `Image`, and `Summary` to navigate by article meaning instead of by raw page order.
 4. Show the reader-first session panel: current item, live narration, reader queue, transcript, and latency.
-5. Open `/evidence` to inspect runtime readiness, judge runbook, award evidence, model budget, image receipts, and runtime plan.
-6. Mention that `/api/demo-script` exposes the same judge runbook and API evidence checks as structured data.
+5. Point to the model stack panel for model id, runtime, parameter count, and Tiny Titan pass status.
+6. Mention that `/api/demo-script` exposes the judge runbook and API evidence checks as structured data.
 
 ## Evidence endpoints
 
 - `/api/health`: app identity, custom frontend marker, llama.cpp base URL, and model manifest.
 - `/api/model-budget`: Tiny Titan parameter proof with numeric `params_billion` and per-model pass values.
 - `/api/runtime-setup`: app command, copyable model runtime commands rendered in the UI, environment values, and fallback paths.
-- `/api/runtime-status`: online or fallback-ready status for each model path, rendered on `/evidence`.
+- `/api/runtime-status`: online or fallback-ready status for each model path.
 - `/api/accessibility-audit`: semantic queue, keyboard navigation, reader cursor state, shortcut safety, live narration, alt text, transcript, user control, and fallback evidence.
 - `/api/demo-script`: repeatable judge runbook and API checks.
 - `/api/image-descriptions`: generated article image descriptions plus prompt, seed, model, asset URL, and fallback status receipts.
@@ -55,7 +55,7 @@ The image receipts keep the generated-asset claim inspectable: each article illu
 
 The submission-readiness panel and API give judges a compact checklist for the whole build, so the live demo can move from individual receipts to an overall readiness view.
 
-The `/evidence` page's Copy Evidence button pulls `/api/evidence-bundle` and writes the formatted JSON bundle to the clipboard for quick judging notes. Transcript, evidence, and command copy actions label clipboard-unavailable fallback states in visible live regions.
+`/api/evidence-bundle` returns formatted JSON for quick judging notes. Transcript copy actions label clipboard-unavailable fallback states in the visible live narration region.
 
 ## Reliability notes
 

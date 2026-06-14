@@ -7,8 +7,6 @@ const imageStatus = document.querySelector("#imageStatus");
 const voiceStatus = document.querySelector("#voiceStatus");
 const latencyStatus = document.querySelector("#latencyStatus");
 const liveNarration = document.querySelector("#liveNarration");
-const readerQueueStatus = document.querySelector("#readerQueueStatus");
-const readerQueueList = document.querySelector("#readerQueueList");
 const audio = document.querySelector("#speechAudio");
 const voiceControl = document.querySelector("#voiceControl");
 const speedControl = document.querySelector("#speedControl");
@@ -17,6 +15,8 @@ const autoAdvanceControl = document.querySelector("#autoAdvanceControl");
 const transcriptLog = document.querySelector("#transcriptLog");
 const copyTranscriptButton = document.querySelector("#copyTranscriptButton");
 const clearTranscriptButton = document.querySelector("#clearTranscriptButton");
+const modelBudgetStatus = document.querySelector("#modelBudgetStatus");
+const modelStackList = document.querySelector("#modelStackList");
 
 const controls = {
   prev: document.querySelector("#prevButton"),
@@ -126,26 +126,6 @@ function readerItemStatus(node) {
   return `${readerTypeLabel(node.type)}, item ${node.index + 1} of ${nodes.length}`;
 }
 
-function readerQueueLabel(node) {
-  return `${node.index + 1}. ${readerTypeLabel(node.type)}`;
-}
-
-function renderReaderQueue() {
-  readerQueueStatus.textContent = `${nodes.length} items`;
-  readerQueueList.innerHTML = nodes
-    .map((node) => `
-      <li${node.index === currentIndex ? ' aria-current="true"' : ""}>
-        <div class="runtime-row">
-          <span>${escapeHtml(readerQueueLabel(node))}</span>
-          <span class="runtime-pill">${node.index === currentIndex ? "current" : "queued"}</span>
-        </div>
-        <p>${escapeHtml(node.text.slice(0, 120))}</p>
-        <button class="reader-queue-play" type="button" data-reader-index="${node.index}">Read item</button>
-      </li>
-    `)
-    .join("");
-}
-
 function initialReaderIndex() {
   if (!nodes.length) {
     return -1;
@@ -232,6 +212,38 @@ function roleLabel(role) {
     .join(" ");
 }
 
+async function loadModelBudget() {
+  try {
+    const payload = await postJson("/api/model-budget");
+    modelBudgetStatus.textContent = payload.all_models_within_limit
+      ? `All <= ${payload.limit_billion}B`
+      : "Review needed";
+    modelStackList.innerHTML = payload.models
+      .map((model) => `
+        <li>
+          <div class="budget-row">
+            <span>${escapeHtml(roleLabel(model.role))}</span>
+            <span class="budget-pill">${escapeHtml(model.params)}</span>
+          </div>
+          <p>${escapeHtml(model.runtime)} | ${model.within_limit ? "Tiny Titan pass" : "Review parameter budget"}</p>
+          <p>${escapeHtml(model.id)}</p>
+        </li>
+      `)
+      .join("");
+  } catch {
+    modelBudgetStatus.textContent = "Unavailable";
+    modelStackList.innerHTML = `
+      <li>
+        <div class="budget-row">
+          <span>Model stack</span>
+          <span class="budget-pill">offline</span>
+        </div>
+        <p>Model budget is unavailable.</p>
+      </li>
+    `;
+  }
+}
+
 async function loadImageDescriptions() {
   imageStatus.textContent = "Describing";
   try {
@@ -281,7 +293,6 @@ function setActive(index) {
   const node = nodes[currentIndex];
   if (!node) {
     currentStatus.textContent = "No item selected";
-    renderReaderQueue();
     return;
   }
   node.element.classList.add("reader-active");
@@ -290,7 +301,6 @@ function setActive(index) {
   node.element.focus({ preventScroll: true });
   node.element.scrollIntoView({ block: "center", behavior: "smooth" });
   currentStatus.textContent = readerItemStatus(node);
-  renderReaderQueue();
 }
 
 function haltPlayback({ clearAutoAdvance = true } = {}) {
@@ -524,12 +534,6 @@ nodes.forEach((node) => {
     narrate(node.index);
   });
 });
-readerQueueList.addEventListener("click", (event) => {
-  const button = event.target.closest(".reader-queue-play");
-  if (!button) return;
-  setEnabled(true);
-  narrate(Number(button.dataset.readerIndex));
-});
 voiceControl.addEventListener("change", () => {
   voiceStatus.textContent = voiceControl.selectedOptions[0]?.textContent || "Custom voice";
 });
@@ -582,9 +586,9 @@ controls.play.addEventListener("click", () => {
 });
 
 loadManifest();
+loadModelBudget();
 loadImageDescriptions();
 updateSpeedValue();
-renderReaderQueue();
 
 audio.addEventListener("ended", () => {
   playing = false;

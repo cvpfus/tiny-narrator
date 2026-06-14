@@ -432,7 +432,7 @@ def accessibility_audit_core() -> dict[str, Any]:
             "id": "semantic_queue",
             "label": "Semantic reading queue",
             "status": "pass",
-            "evidence": "Readable article nodes declare data-reader-type values and the session panel renders their ordered queue with click-to-read controls.",
+            "evidence": "Readable article nodes declare data-reader-type values and the reader controls navigate the ordered semantic node list.",
         },
         {
             "id": "keyboard_navigation",
@@ -814,11 +814,6 @@ def generate_image_core(prompt: str, seed: int | None) -> dict[str, Any]:
 @app.get("/", response_class=HTMLResponse)
 async def home() -> str:
     return (STATIC_DIR / "index.html").read_text(encoding="utf-8")
-
-
-@app.get("/evidence", response_class=HTMLResponse)
-async def evidence_page() -> str:
-    return (STATIC_DIR / "evidence.html").read_text(encoding="utf-8")
 
 
 @app.get("/api/health")

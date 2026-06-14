@@ -16,7 +16,6 @@
         <a href="#why">Why</a>
         <a href="#models">Models</a>
         <a href="#notes">Field Notes</a>
-        <a href="/evidence">Evidence</a>
       </nav>
       <button id="readerToggle" class="reader-toggle" type="button" aria-pressed="false">
         <span class="toggle-dot" aria-hidden="true"></span>
@@ -118,17 +117,17 @@
         <p id="liveNarration" class="live-narration" aria-live="polite">
           Turn on screen reader mode to begin.
         </p>
-        <div class="reader-queue-header">
-          <h3>Reader Queue</h3>
-          <span id="readerQueueStatus">Loading</span>
-        </div>
-        <ol id="readerQueueList" class="runtime-list" aria-label="Semantic reader queue"></ol>
         <div class="history-header">
           <h3>Transcript</h3>
           <button id="copyTranscriptButton" type="button">Copy</button>
           <button id="clearTranscriptButton" type="button">Clear</button>
         </div>
         <ol id="transcriptLog" class="transcript-log" aria-label="Narration transcript"></ol>
+        <div class="budget-header">
+          <h3>Model Stack</h3>
+          <span id="modelBudgetStatus">Checking</span>
+        </div>
+        <ul id="modelStackList" class="budget-list" aria-label="Tiny Titan model stack"></ul>
       </aside>
     </main>
 
