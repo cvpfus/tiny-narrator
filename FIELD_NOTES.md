@@ -36,6 +36,8 @@ The judge evidence bundle lives at `/api/evidence-bundle`. That endpoint returns
 
 Image provenance lives in `/api/image-descriptions`. Each article illustration carries the planned FLUX.2 klein model id, prompt, seed, asset URL, and fallback status so the generated-image claim is inspectable.
 
+The Generate route uses `/api/generate-article` to turn a user's topic into a short semantic article. It uses the reader-brain model path for article text when llama.cpp is online, keeps a deterministic fallback draft for demos, and attaches thumbnail provenance from `black-forest-labs/FLUX.2-klein-4B`.
+
 Accessibility evidence lives at `/api/accessibility-audit`. It records the reader-mode choices that matter most for this prototype: semantic reading order, keyboard navigation, reader cursor state, shortcut safety, live narration, image alt text, transcript review, user-controlled playback, and fallback resilience.
 
 ## Reader Mode Behavior

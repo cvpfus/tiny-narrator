@@ -6,7 +6,7 @@ Tiny Narrator turns an article into a guided screen-reader experience using smal
 
 ## Short description
 
-Tiny Narrator is a custom Gradio Server app that looks like an article/blog reader until screen-reader mode is switched on. In reader mode, the app builds an internal semantic reading queue, narrates headings and paragraphs, describes generated images, summarizes the current section, speaks with Kokoro, and keeps a visible transcript of the spoken path with reader position, runtime, and latency.
+Tiny Narrator is a custom Gradio Server app with a Reader route and a Generate route. Reader looks like an article/blog reader until screen-reader mode is switched on: it builds an internal semantic reading queue, narrates headings and paragraphs, describes generated images, summarizes the current section, speaks with Kokoro, and keeps a visible transcript of the spoken path with reader position, runtime, and latency. Generate creates a short article from a user topic and attaches a Klein thumbnail receipt.
 
 The prototype is designed for a live hackathon demo: every model-facing path has a deterministic fallback, runtime readiness is labeled in the UI, and the repo exposes machine-readable evidence for model size, setup, demo flow, and accessibility behavior.
 
@@ -33,7 +33,8 @@ The prototype is designed for a live hackathon demo: every model-facing path has
 3. Use `Heading`, `Image`, and `Summary` to navigate by article meaning instead of by raw page order.
 4. Show the reader-first session panel: current item, live narration, reader queue, transcript, and latency.
 5. Point to the model stack panel for model id, runtime, parameter count, and Tiny Titan pass status.
-6. Mention that `/api/demo-script` exposes the judge runbook and API evidence checks as structured data.
+6. Open the Generate route, enter a topic, and show the generated article plus `black-forest-labs/FLUX.2-klein-4B` thumbnail receipt.
+7. Mention that `/api/demo-script` exposes the judge runbook and API evidence checks as structured data.
 
 ## Evidence endpoints
 
@@ -44,10 +45,11 @@ The prototype is designed for a live hackathon demo: every model-facing path has
 - `/api/accessibility-audit`: semantic queue, keyboard navigation, reader cursor state, shortcut safety, live narration, alt text, transcript, user control, and fallback evidence.
 - `/api/demo-script`: repeatable judge runbook and API checks.
 - `/api/image-descriptions`: generated article image descriptions plus prompt, seed, model, asset URL, and fallback status receipts.
+- `/api/generate-article`: topic-to-article generation using the reader-brain path plus Klein thumbnail provenance.
 - `/api/submission-readiness`: one pass/fail rollup for model budget, award evidence, custom frontend, runtime setup, runtime status, accessibility, image receipts, and demo API checks.
 - `/api/evidence-bundle`: copyable JSON bundle containing schema version, generation time, core judge evidence receipts, runtime status, and readiness rollup.
 
-The checks in `/api/demo-script` include copyable curl and PowerShell-friendly `curl.exe` commands generated from `PUBLIC_BASE_URL`, and the POST checks include sample JSON bodies for `/api/reader-brain` and `/api/speak`.
+The checks in `/api/demo-script` include copyable curl and PowerShell-friendly `curl.exe` commands generated from `PUBLIC_BASE_URL`, and the POST checks include sample JSON bodies for `/api/reader-brain`, `/api/speak`, and `/api/generate-article`.
 
 The accessibility audit also documents reader-mode details that matter during judging: the active item is exposed as a reader cursor with focus, visible outline, stable id, and `aria-current`; global shortcuts ignore form controls so voice, speed, and auto-advance settings remain usable while reader mode is active; reader controls expose `aria-keyshortcuts` plus visible Repeat and Stop commands.
 

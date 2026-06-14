@@ -23,8 +23,10 @@ def verify_static_assets() -> None:
         ROOT / "LICENSE",
         ROOT / "SUBMISSION.md",
         ROOT / "static" / "index.html",
+        ROOT / "static" / "generate.html",
         ROOT / "static" / "app.css",
         ROOT / "static" / "app.js",
+        ROOT / "static" / "generate.js",
         ROOT / "static" / "generated" / "desk-reader.svg",
         ROOT / "static" / "generated" / "model-map.svg",
         ROOT / "static" / "generated" / "field-notes.svg",
@@ -33,7 +35,17 @@ def verify_static_assets() -> None:
         assert_true(path.exists(), f"Missing required asset: {path}")
 
     app_js = (ROOT / "static" / "app.js").read_text(encoding="utf-8")
+    generate_js = (ROOT / "static" / "generate.js").read_text(encoding="utf-8")
     index_html = (ROOT / "static" / "index.html").read_text(encoding="utf-8")
+    generate_html = (ROOT / "static" / "generate.html").read_text(encoding="utf-8")
+    assert_true('href="/" aria-current="page">Reader' in index_html, "Reader page should mark Reader route current")
+    assert_true('href="/generate">Generate' in index_html, "Reader page should link to Generate route")
+    assert_true('href="/">Reader' in generate_html, "Generate page should link back to Reader route")
+    assert_true('href="/generate" aria-current="page">Generate' in generate_html, "Generate page should mark Generate route current")
+    assert_true("articleGeneratorForm" in generate_html, "Generate page should expose the article generator form")
+    assert_true("generatedThumbnail" in generate_html, "Generate page should expose a generated thumbnail preview")
+    assert_true("/api/generate-article" in generate_js, "Generate frontend should call article generation API")
+    assert_true("thumbnail.generation_model" in generate_js, "Generate frontend should render Klein thumbnail receipt")
     assert_true('data-reader-type="heading"' in index_html, "Article should mark heading reader nodes")
     assert_true('data-reader-type="image"' in index_html, "Article should mark image reader nodes")
     assert_true('href="#notes"' not in index_html, "Article navigation should not include the Field Notes section")
@@ -104,6 +116,7 @@ def verify_static_assets() -> None:
         "/api/demo-script",
         "/api/submission-readiness",
         "/api/evidence-bundle",
+        "/api/generate-article",
     ]:
         assert_true(endpoint in submission, f"Submission packet should mention {endpoint}")
     assert_true(
@@ -207,6 +220,15 @@ def verify_core_fallbacks() -> None:
     assert_true(generated["ok"], "Image generation placeholder should return ok")
     assert_true(isinstance(generated["elapsed_ms"], int), "Image generation should include elapsed_ms")
 
+    article = app.generate_article_core("tiny classroom robotics")
+    assert_true(article["ok"], "Article generation should return ok")
+    assert_true(article["model"] == app.MODEL_MANIFEST["reader_brain"]["id"], "Article generation should use reader-brain model")
+    assert_true(len(article["article"]["sections"]) == 3, "Article generation should return three sections")
+    assert_true(
+        article["thumbnail"]["generation_model"] == app.MODEL_MANIFEST["image_generation"]["id"],
+        "Article generation should use the Klein image model for thumbnail receipt",
+    )
+
 
 def verify_output_retention() -> None:
     keep_path = app.OUTPUT_DIR / "speech-retention-keep.wav"
@@ -235,6 +257,7 @@ def verify_routes() -> None:
     home = client.get("/")
     assert_true(home.status_code == 200, "Home route should return 200")
     assert_true("Tiny Narrator" in home.text, "Home route should include app title")
+    assert_true('href="/generate">Generate' in home.text, "Home route should link to Generate route")
     assert_true("readerToggle" in home.text, "Home route should include reader toggle")
     assert_true("summaryButton" in home.text, "Home route should include summary control")
     assert_true("imageStatus" in home.text, "Home route should include image status")
@@ -249,6 +272,12 @@ def verify_routes() -> None:
     assert_true("modelStackList" in home.text, "Home route should include model stack list")
     assert_true("/evidence" not in home.text, "Home route should not link to a removed evidence page")
     assert_true("copyEvidenceButton" not in home.text, "Home route should keep judge evidence off the reader sidebar")
+
+    generate_page = client.get("/generate")
+    assert_true(generate_page.status_code == 200, "Generate route should return 200")
+    assert_true("Generate a readable article" in generate_page.text, "Generate route should include generator title")
+    assert_true("articleGeneratorForm" in generate_page.text, "Generate route should include article generator form")
+    assert_true("generatedThumbnail" in generate_page.text, "Generate route should include generated thumbnail")
 
     health = client.get("/api/health")
     assert_true(health.status_code == 200, "Health route should return 200")
@@ -423,6 +452,16 @@ def verify_routes() -> None:
     assert_true(
         speech_sample_payload["audio_url"].startswith("/outputs/"),
         "Speech sample payload should return an output audio URL",
+    )
+
+    article_sample = client.post("/api/generate-article", json={"topic": "accessible classroom robotics"})
+    assert_true(article_sample.status_code == 200, "Article generation route should return 200")
+    article_sample_payload = article_sample.json()
+    assert_true(article_sample_payload["ok"], "Article generation payload should return ok")
+    assert_true(len(article_sample_payload["article"]["sections"]) == 3, "Article generation payload should include three sections")
+    assert_true(
+        article_sample_payload["thumbnail"]["generation_model"] == app.MODEL_MANIFEST["image_generation"]["id"],
+        "Article generation payload should include Klein thumbnail provenance",
     )
 
     audit = client.get("/api/accessibility-audit")

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tiny Narrator Generator</title>
+    <link rel="stylesheet" href="/static/app.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="Tiny Narrator home">
+        <span class="brand-mark" aria-hidden="true">TN</span>
+        <span>Tiny Narrator</span>
+      </a>
+      <nav class="topnav" aria-label="Primary routes">
+        <a href="/">Reader</a>
+        <a href="/generate" aria-current="page">Generate</a>
+      </nav>
+      <a class="reader-toggle route-action" href="/">Reader App</a>
+    </header>
+
+    <main class="generator-shell" aria-labelledby="generatorTitle">
+      <section class="generator-controls">
+        <p class="kicker">Small-model article lab</p>
+        <h1 id="generatorTitle">Generate a readable article</h1>
+        <p class="dek">
+          Pick a topic and Tiny Narrator drafts a short semantic article with the llama.cpp reader brain,
+          then asks the Klein image path for a thumbnail receipt.
+        </p>
+        <form id="articleGeneratorForm" class="generator-form">
+          <label for="topicInput">Topic</label>
+          <div class="generator-input-row">
+            <input
+              id="topicInput"
+              name="topic"
+              type="text"
+              minlength="3"
+              maxlength="100"
+              value="accessible robotics for classrooms"
+              required
+            />
+            <button id="generateArticleButton" type="submit">Generate</button>
+          </div>
+        </form>
+        <p id="generatorStatus" class="live-narration" aria-live="polite">Ready to generate.</p>
+      </section>
+
+      <article id="generatedArticle" class="generated-article" aria-labelledby="generatedTitle">
+        <figure class="hero-figure">
+          <img id="generatedThumbnail" src="/static/generated/model-map.svg" alt="Generated article thumbnail preview." />
+          <figcaption id="thumbnailReceipt">
+            Thumbnail will use black-forest-labs/FLUX.2-klein-4B.
+          </figcaption>
+        </figure>
+        <p id="generatedKicker" class="kicker">Generated draft</p>
+        <h1 id="generatedTitle">Your generated article will appear here</h1>
+        <p id="generatedDek" class="dek">
+          The result will include a title, summary, three readable sections, model runtime, and thumbnail receipt.
+        </p>
+        <div id="generatedSections" class="generated-sections"></div>
+      </article>
+    </main>
+
+    <script src="/static/generate.js" type="module"></script>
+  </body>
+</html>

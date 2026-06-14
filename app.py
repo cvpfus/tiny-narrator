@@ -262,6 +262,12 @@ def demo_script_core() -> dict[str, Any]:
                 "speed": READER_SETTINGS["default_speed"],
             },
         },
+        {
+            "method": "POST",
+            "path": "/api/generate-article",
+            "expect": "generated article draft with Klein thumbnail receipt",
+            "sample_body": {"topic": "accessible robotics for classrooms"},
+        },
     ]
     for check in api_checks:
         check["curl"] = demo_curl_command(check)
@@ -384,6 +390,7 @@ def submission_readiness_core() -> dict[str, Any]:
                 "/api/image-descriptions",
                 "/api/reader-brain",
                 "/api/speak",
+                "/api/generate-article",
             }.issubset(api_paths)
             and post_samples_ready
             else "fail",
@@ -544,6 +551,10 @@ class ImageGenerationRequest(BaseModel):
     seed: int | None = None
 
 
+class ArticleGenerationRequest(BaseModel):
+    topic: str
+
+
 def _json(data: dict[str, Any], status_code: int = 200) -> JSONResponse:
     return JSONResponse(data, status_code=status_code)
 
@@ -615,6 +626,55 @@ def _compact_text(text: str, limit: int = 220) -> str:
     if len(normalized) <= limit:
         return normalized
     return f"{normalized[: limit - 1].rstrip()}."
+
+
+def _topic_seed(topic: str) -> int:
+    return (sum(ord(char) for char in topic) % 997) + 1
+
+
+def _fallback_article(topic: str) -> dict[str, Any]:
+    clean_topic = _compact_text(topic, 80).rstrip(".") or "accessible technology"
+    title = f"A tiny guide to {clean_topic}"
+    return {
+        "title": title,
+        "dek": (
+            f"This generated article introduces {clean_topic} with a short, screen-reader-friendly structure "
+            "and practical examples."
+        ),
+        "sections": [
+            {
+                "heading": f"Why {clean_topic} matters",
+                "body": (
+                    f"{clean_topic.capitalize()} is easier to understand when the page explains the main idea first, "
+                    "then moves through examples in a predictable order."
+                ),
+            },
+            {
+                "heading": "How a tiny narrator helps",
+                "body": (
+                    "A small reader model can turn each heading, paragraph, and image caption into concise narration "
+                    "without turning the article into a chatbot."
+                ),
+            },
+            {
+                "heading": "What to try next",
+                "body": (
+                    "Use the reader controls to move by heading or image, then compare the transcript with the article "
+                    "to check whether the generated structure is easy to follow."
+                ),
+            },
+        ],
+    }
+
+
+def _article_generation_prompt(topic: str) -> str:
+    return (
+        "Write a short accessible article for Tiny Narrator.\n"
+        f"Topic: {topic}\n\n"
+        "Return strict JSON with keys title, dek, and sections. "
+        "sections must contain exactly three objects with heading and body. "
+        "Keep every body under 45 words. Do not include markdown."
+    )
 
 
 def reader_brain_core(node_type: str, text: str, position: str | None, mode: str) -> dict[str, Any]:
@@ -811,9 +871,88 @@ def generate_image_core(prompt: str, seed: int | None) -> dict[str, Any]:
     }
 
 
+def generate_article_core(topic: str) -> dict[str, Any]:
+    start = time.perf_counter()
+    clean_topic = _compact_text(topic, 100).strip()
+    if not clean_topic:
+        clean_topic = "accessible technology"
+
+    article = _fallback_article(clean_topic)
+    runtime = "fallback"
+    warning = None
+    try:
+        body = json.dumps(
+            {
+                "model": LLAMA_CPP_MODEL,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are Tiny Narrator's article generator. "
+                            "Create concise, semantic, accessible article drafts."
+                        ),
+                    },
+                    {"role": "user", "content": _article_generation_prompt(clean_topic)},
+                ],
+                "temperature": 0.35,
+                "max_tokens": 420,
+            }
+        ).encode("utf-8")
+        request = urllib.request.Request(
+            f"{LLAMA_CPP_BASE_URL}/chat/completions",
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(request, timeout=45) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        generated = json.loads(payload["choices"][0]["message"]["content"].strip())
+        sections = generated.get("sections", [])
+        if (
+            isinstance(generated.get("title"), str)
+            and isinstance(generated.get("dek"), str)
+            and isinstance(sections, list)
+            and len(sections) == 3
+            and all(isinstance(item.get("heading"), str) and isinstance(item.get("body"), str) for item in sections)
+        ):
+            article = {
+                "title": _compact_text(generated["title"], 90),
+                "dek": _compact_text(generated["dek"], 180),
+                "sections": [
+                    {"heading": _compact_text(item["heading"], 80), "body": _compact_text(item["body"], 260)}
+                    for item in sections
+                ],
+            }
+            runtime = "llama.cpp"
+    except (OSError, urllib.error.URLError, TimeoutError, KeyError, json.JSONDecodeError) as exc:
+        warning = f"llama.cpp unavailable: {exc.__class__.__name__}"
+
+    image_prompt = f"Editorial thumbnail for an accessible article about {clean_topic}."
+    thumbnail = generate_image_core(image_prompt, seed=_topic_seed(clean_topic))
+    return {
+        "ok": True,
+        "topic": clean_topic,
+        "runtime": runtime,
+        "model": MODEL_MANIFEST["reader_brain"]["id"],
+        "warning": warning,
+        "article": article,
+        "thumbnail": {
+            **thumbnail,
+            "role": "thumbnail",
+            "generation_model": MODEL_MANIFEST["image_generation"]["id"],
+        },
+        "elapsed_ms": _elapsed_ms(start),
+    }
+
+
 @app.get("/", response_class=HTMLResponse)
 async def home() -> str:
     return (STATIC_DIR / "index.html").read_text(encoding="utf-8")
+
+
+@app.get("/generate", response_class=HTMLResponse)
+async def generate_page() -> str:
+    return (STATIC_DIR / "generate.html").read_text(encoding="utf-8")
 
 
 @app.get("/api/health")
@@ -900,6 +1039,11 @@ async def generate_image_endpoint(payload: ImageGenerationRequest) -> JSONRespon
     return _json(generate_image_core(payload.prompt, payload.seed))
 
 
+@app.post("/api/generate-article")
+async def generate_article_endpoint(payload: ArticleGenerationRequest) -> JSONResponse:
+    return _json(generate_article_core(payload.topic))
+
+
 @app.api(name="reader_brain")
 def reader_brain_api(node_type: str, text: str, position: str = "", mode: str = "narrate") -> str:
     return json.dumps(reader_brain_core(node_type, text, position, mode))
@@ -953,6 +1097,11 @@ def speak_api(text: str, voice: str = "af_heart", speed: float = 1.0) -> str:
 @app.api(name="generate_image")
 def generate_image_api(prompt: str, seed: int | None = None) -> str:
     return json.dumps(generate_image_core(prompt, seed))
+
+
+@app.api(name="generate_article")
+def generate_article_api(topic: str) -> str:
+    return json.dumps(generate_article_core(topic))
 
 
 @app.exception_handler(Exception)

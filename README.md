@@ -12,7 +12,7 @@ license: apache-2.0
 
 # Tiny Narrator
 
-Tiny Narrator is a Build Small Hackathon prototype: a custom Gradio Server article app that can switch into a guided screen-reader mode.
+Tiny Narrator is a Build Small Hackathon prototype: a custom Gradio Server app with two routes: a guided screen-reader article and a small-model article generator.
 
 For the hackathon form, see [SUBMISSION.md](SUBMISSION.md).
 
@@ -52,7 +52,7 @@ Start the app:
 python app.py
 ```
 
-Open the local URL printed by Gradio. The article page calls `/api/reader-brain`, `/api/image-descriptions`, `/api/describe-image`, `/api/speak`, and `/api/model-budget`; the remaining evidence endpoints stay available for docs and submission checks.
+Open the local URL printed by Gradio. The Reader route calls `/api/reader-brain`, `/api/image-descriptions`, `/api/describe-image`, `/api/speak`, and `/api/model-budget`. The Generate route calls `/api/generate-article`, which drafts an article with the reader-brain model path and attaches a Klein thumbnail receipt.
 
 Useful environment variables:
 
@@ -76,11 +76,13 @@ The verifier checks syntax, static assets, Space metadata consistency, determini
 
 `/api/runtime-setup` exposes the commands, environment values, and fallback paths used for the model stack so the demo can be reproduced from the same data the UI displays.
 
-`/api/demo-script` exposes a compact judge runbook with the visible actions, API checks, sample bodies, curl commands, and PowerShell-friendly `curl.exe` commands that prove the submission claims. The commands use `PUBLIC_BASE_URL` so they can be copied from the API response or submission notes.
+`/api/demo-script` exposes a compact judge runbook with the visible actions, API checks, sample bodies, curl commands, and PowerShell-friendly `curl.exe` commands that prove the submission claims, including `/api/generate-article`. The commands use `PUBLIC_BASE_URL` so they can be copied from the API response or submission notes.
 
 `/api/accessibility-audit` exposes structured evidence for semantic reading order, keyboard navigation, reader cursor state, shortcut safety, live narration, image alt text, transcript review, user-controlled playback, and fallback resilience.
 
 `/api/image-descriptions` includes image-generation provenance for every article illustration: the planned FLUX.2 klein model, prompt, seed, bundled asset URL, and fallback-ready status.
+
+`/api/generate-article` accepts a topic and returns a generated article draft plus thumbnail provenance from `black-forest-labs/FLUX.2-klein-4B`.
 
 `/api/submission-readiness` aggregates the judging receipts into one pass/fail payload covering model budget, award evidence, custom frontend assets, runtime setup, runtime status, accessibility, image receipts, demo API checks, and command base URL checks.
 
@@ -138,3 +140,7 @@ The sidebar model stack reads `/api/model-budget` so judges can see each role's 
 `/api/runtime-setup` summarizes each model path's runtime, setup command, and fallback, keeping the live demo honest about what is online and what is deterministic.
 
 `/api/runtime-status` performs a short readiness check for llama.cpp and local speech dependencies, then reports which fallback paths are ready for a live demo.
+
+## Generate Route
+
+The header exposes two routes: Reader and Generate. Generate lets a user enter a topic, calls `/api/generate-article`, and renders a short semantic article with a thumbnail receipt. The text path uses the configured llama.cpp reader-brain model when available and falls back to deterministic article structure. The thumbnail path uses the planned Klein image model metadata and bundled fallback assets until the full image adapter is online.
