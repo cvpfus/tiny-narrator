@@ -111,7 +111,7 @@ Reader buttons expose `aria-keyshortcuts`, and the Repeat and Stop shortcuts are
 
 The session panel keeps a transcript of recent narration with copy and clear controls, making the spoken path inspectable during demos and useful for the Field Notes write-up. Copy actions report when browser clipboard access is unavailable, so the visible transcript and commands remain inspectable.
 
-Image descriptions are preloaded into a local cache and written into the page's real `img alt` attributes. When the planned MiniCPM-V runtime is unavailable, deterministic alt-text fallbacks keep the screen-reader path usable.
+Images start with meaningful fallback `alt` text in the HTML. Image descriptions are then preloaded into a local cache and written into the page's real `img alt` attributes. When the planned MiniCPM-V runtime is unavailable, deterministic alt-text fallbacks keep the screen-reader path usable.
 
 The session panel also renders image receipts from `/api/image-descriptions`, so judges can inspect the prompt, seed, planned <=4B image model, and fallback status behind each bundled article illustration.
 

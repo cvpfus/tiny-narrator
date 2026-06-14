@@ -445,7 +445,7 @@ def accessibility_audit_core() -> dict[str, Any]:
             "id": "image_alt_text",
             "label": "Image descriptions",
             "status": "pass",
-            "evidence": "The app preloads article image descriptions and writes them into real img alt attributes.",
+            "evidence": "Article images start with meaningful fallback alt text, then model descriptions are written into real img alt attributes.",
         },
         {
             "id": "inspectable_transcript",

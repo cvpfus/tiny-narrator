@@ -58,4 +58,4 @@ The Copy Evidence button pulls `/api/evidence-bundle` and writes the formatted J
 
 ## Reliability notes
 
-The demo remains navigable when local models are unavailable. The reader brain falls back to deterministic narration, image descriptions fall back to cached alt text, speech falls back to browser speech plus transcript, and generated images fall back to bundled article assets. Fallback states are labeled instead of hidden.
+The demo remains navigable when local models are unavailable. The reader brain falls back to deterministic narration, generated images start with meaningful HTML alt text, image descriptions fall back to cached alt text, speech falls back to browser speech plus transcript, and generated images fall back to bundled article assets. Fallback states are labeled instead of hidden.
