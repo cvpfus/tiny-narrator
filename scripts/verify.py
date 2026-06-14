@@ -442,8 +442,21 @@ def verify_routes() -> None:
     assert_true(evidence_payload["submission_readiness"]["all_passed"], "Evidence bundle should include passing readiness")
     assert_true(evidence_payload["model_budget"]["all_models_within_limit"], "Evidence bundle should include Tiny Titan proof")
     assert_true(
-        {"demo_script", "accessibility_audit", "image_descriptions"} <= set(evidence_payload),
-        "Evidence bundle should include demo script, accessibility audit, and image descriptions",
+        {"runtime_status", "demo_script", "accessibility_audit", "image_descriptions"} <= set(evidence_payload),
+        "Evidence bundle should include runtime status, demo script, accessibility audit, and image descriptions",
+    )
+    assert_true(evidence_payload["runtime_status"]["ok"], "Evidence bundle should include ok runtime status")
+    assert_true(
+        {"reader_brain", "speech"} <= set(evidence_payload["runtime_status"]),
+        "Evidence bundle runtime status should include reader brain and speech status",
+    )
+    assert_true(
+        evidence_payload["runtime_status"]["reader_brain"]["status"] in {"online", "fallback-ready"},
+        "Evidence bundle reader brain status should be online or fallback-ready",
+    )
+    assert_true(
+        evidence_payload["runtime_status"]["speech"]["status"] in {"online", "fallback-ready"},
+        "Evidence bundle speech status should be online or fallback-ready",
     )
 
     runtime = client.get("/api/runtime-status")

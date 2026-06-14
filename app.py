@@ -401,6 +401,7 @@ def evidence_bundle_core() -> dict[str, Any]:
         "award_evidence": {"ok": True, "items": AWARD_EVIDENCE},
         "model_budget": model_budget_core(),
         "runtime_setup": runtime_setup_core(),
+        "runtime_status": _runtime_status_core(),
         "demo_script": demo_script_core(),
         "accessibility_audit": accessibility_audit_core(),
         "image_descriptions": describe_article_images_core(),
