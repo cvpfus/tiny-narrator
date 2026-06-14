@@ -86,7 +86,7 @@ The verifier checks syntax, static assets, Space metadata consistency, determini
 
 The readiness rollup only passes the demo API check when POST entries include executable sample bodies.
 
-`/api/evidence-bundle` returns a copyable JSON bundle of the main judging receipts, including `PUBLIC_BASE_URL`, runtime status, and the submission readiness rollup. The Submission Readiness panel includes a Copy Evidence button that writes this bundle to the clipboard.
+`/api/evidence-bundle` returns a copyable JSON bundle of the main judging receipts, including schema version, UTC generation time, `PUBLIC_BASE_URL`, runtime status, and the submission readiness rollup. The Submission Readiness panel includes a Copy Evidence button that writes this bundle to the clipboard.
 
 ## Screen Reader Mode
 

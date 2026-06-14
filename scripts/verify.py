@@ -485,6 +485,8 @@ def verify_routes() -> None:
     assert_true(evidence.status_code == 200, "Evidence bundle route should return 200")
     evidence_payload = evidence.json()
     assert_true(evidence_payload["ok"], "Evidence bundle payload should be ok")
+    assert_true(evidence_payload["schema_version"] == "1.0", "Evidence bundle should include schema version")
+    assert_true(evidence_payload["generated_at"].endswith("Z"), "Evidence bundle should include UTC timestamp")
     assert_true(evidence_payload["public_base_url"] == app.PUBLIC_BASE_URL, "Evidence bundle should include public base URL")
     assert_true(evidence_payload["submission_readiness"]["all_passed"], "Evidence bundle should include passing readiness")
     assert_true(evidence_payload["model_budget"]["all_models_within_limit"], "Evidence bundle should include Tiny Titan proof")

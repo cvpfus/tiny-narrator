@@ -7,6 +7,7 @@ import time
 import urllib.error
 import urllib.request
 import wave
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -408,6 +409,8 @@ def evidence_bundle_core() -> dict[str, Any]:
     return {
         "ok": True,
         "title": "Tiny Narrator judge evidence bundle",
+        "schema_version": "1.0",
+        "generated_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "frontend": "custom Gradio Server HTML/CSS/JS",
         "public_base_url": PUBLIC_BASE_URL,
         "bonus_targets": ARTICLE_MANIFEST["bonus_targets"],
