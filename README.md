@@ -75,7 +75,7 @@ The verifier checks syntax, static assets, Space metadata consistency, determini
 
 `/api/runtime-setup` exposes the commands, environment values, and fallback paths used for the model stack so the demo can be reproduced from the same data the UI displays.
 
-`/api/demo-script` exposes a compact judge runbook with the visible actions, API checks, sample bodies, and curl commands that prove the submission claims. The session panel renders those actions and API evidence checks as the Judge Runbook.
+`/api/demo-script` exposes a compact judge runbook with the visible actions, API checks, sample bodies, curl commands, and PowerShell-friendly `curl.exe` commands that prove the submission claims. The session panel renders those actions and API evidence checks as the Judge Runbook.
 
 `/api/accessibility-audit` exposes structured evidence for semantic reading order, keyboard navigation, reader cursor state, shortcut safety, live narration, image alt text, transcript review, user-controlled playback, and fallback resilience.
 

@@ -221,6 +221,14 @@ def demo_curl_command(check: dict[str, Any]) -> str:
     return f"curl -X POST {url} -H \"Content-Type: application/json\" -d '{sample_body}'"
 
 
+def demo_powershell_command(check: dict[str, Any]) -> str:
+    url = f"http://localhost:7860{check['path']}"
+    if check["method"] == "GET":
+        return f"curl.exe {url}"
+    sample_body = json.dumps(check["sample_body"], separators=(",", ":")).replace('"', '\\"')
+    return f'curl.exe -X POST {url} -H "Content-Type: application/json" -d "{sample_body}"'
+
+
 def demo_script_core() -> dict[str, Any]:
     api_checks = [
         {"method": "GET", "path": "/api/health", "expect": "custom Gradio Server app and model manifest"},
@@ -254,6 +262,7 @@ def demo_script_core() -> dict[str, Any]:
     ]
     for check in api_checks:
         check["curl"] = demo_curl_command(check)
+        check["powershell"] = demo_powershell_command(check)
 
     return {
         "ok": True,
