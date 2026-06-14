@@ -22,6 +22,8 @@ const budgetStatus = document.querySelector("#budgetStatus");
 const modelBudgetList = document.querySelector("#modelBudgetList");
 const runtimeSetupStatus = document.querySelector("#runtimeSetupStatus");
 const runtimeSetupList = document.querySelector("#runtimeSetupList");
+const imageReceiptStatus = document.querySelector("#imageReceiptStatus");
+const imageReceiptList = document.querySelector("#imageReceiptList");
 
 const controls = {
   prev: document.querySelector("#prevButton"),
@@ -318,8 +320,31 @@ async function loadImageDescriptions() {
       }
     }
     imageStatus.textContent = `${imageDescriptions.size} ready`;
+    imageReceiptStatus.textContent = `${payload.descriptions.length} receipts`;
+    imageReceiptList.innerHTML = payload.descriptions
+      .map((description) => `
+        <li>
+          <div class="image-receipt-row">
+            <span>${escapeHtml(description.id)}</span>
+            <span class="image-receipt-pill">${escapeHtml(description.generation_status)}</span>
+          </div>
+          <p>${escapeHtml(description.generation_model)} | seed ${escapeHtml(String(description.seed))}</p>
+          <p>${escapeHtml(description.prompt)}</p>
+        </li>
+      `)
+      .join("");
   } catch {
     imageStatus.textContent = "Fallback on demand";
+    imageReceiptStatus.textContent = "Unavailable";
+    imageReceiptList.innerHTML = `
+      <li>
+        <div class="image-receipt-row">
+          <span>Image receipts</span>
+          <span class="image-receipt-pill">offline</span>
+        </div>
+        <p>Generated image provenance is unavailable.</p>
+      </li>
+    `;
   }
 }
 

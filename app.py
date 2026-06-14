@@ -60,24 +60,36 @@ MODEL_MANIFEST: dict[str, dict[str, Any]] = {
     },
 }
 
-ARTICLE_IMAGES: list[dict[str, str]] = [
+ARTICLE_IMAGES: list[dict[str, Any]] = [
     {
         "id": "desk-reader",
         "asset_url": "/static/generated/desk-reader.svg",
         "caption": "The article view doubles as the demo surface, so every feature has a real reading task.",
         "prompt": "Accessibility article reader with highlighted paragraph and narration controls.",
+        "seed": 11,
+        "generation_model": "black-forest-labs/FLUX.2-klein-4B",
+        "generation_runtime": "bundled fallback asset",
+        "generation_status": "fallback-ready",
     },
     {
         "id": "model-map",
         "asset_url": "/static/generated/model-map.svg",
         "caption": "Each model stays at or below four billion parameters for Tiny Titan eligibility.",
         "prompt": "Diagram of four small AI models working together in an accessibility reader.",
+        "seed": 22,
+        "generation_model": "black-forest-labs/FLUX.2-klein-4B",
+        "generation_runtime": "bundled fallback asset",
+        "generation_status": "fallback-ready",
     },
     {
         "id": "field-notes",
         "asset_url": "/static/generated/field-notes.svg",
         "caption": "Field notes document the choices behind the screen-reader behavior.",
         "prompt": "Notebook page with model sizes, keyboard controls, and accessibility checks.",
+        "seed": 33,
+        "generation_model": "black-forest-labs/FLUX.2-klein-4B",
+        "generation_runtime": "bundled fallback asset",
+        "generation_status": "fallback-ready",
     },
 ]
 

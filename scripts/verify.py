@@ -38,6 +38,7 @@ def verify_static_assets() -> None:
     assert_true('data-reader-type="image"' in index_html, "Article should mark image reader nodes")
     assert_true('aria-live="polite"' in index_html, "Article should expose an aria-live narration region")
     assert_true("transcriptLog" in index_html, "Article should expose a visible transcript log")
+    assert_true("imageReceiptList" in index_html, "Article should expose generated image receipts")
     assert_true("function haltPlayback" in app_js, "Reader controls should expose a shared playback halt helper")
     assert_true(
         "haltPlayback({ clearAutoAdvance: false });" in app_js,
@@ -59,6 +60,8 @@ def verify_static_assets() -> None:
     )
     for evidence in ["reader cursor", "shortcut safety", "aria-current"]:
         assert_true(evidence in submission, f"Submission packet should mention {evidence}")
+    for evidence in ["prompt", "seed", "FLUX.2-klein-4B", "fallback asset"]:
+        assert_true(evidence in submission, f"Submission packet should mention image receipt evidence: {evidence}")
 
 
 def front_matter_value(readme: str, key: str) -> str:
@@ -129,6 +132,14 @@ def verify_core_fallbacks() -> None:
     article_descriptions = app.describe_article_images_core()
     assert_true(article_descriptions["ok"], "Article image descriptions did not return ok")
     assert_true(len(article_descriptions["descriptions"]) == 3, "Article should expose three image descriptions")
+    assert_true(
+        all(item["generation_model"] == app.MODEL_MANIFEST["image_generation"]["id"] for item in article_descriptions["descriptions"]),
+        "Article image descriptions should include the planned image-generation model",
+    )
+    assert_true(
+        all(isinstance(item["seed"], int) for item in article_descriptions["descriptions"]),
+        "Article image descriptions should include generation seeds",
+    )
     assert_true(isinstance(article_descriptions["elapsed_ms"], int), "Article image descriptions should include elapsed_ms")
 
     speech = app.speak_core("Tiny Narrator verification.", voice="af_heart", speed=1.0)
@@ -187,6 +198,8 @@ def verify_routes() -> None:
     assert_true("modelBudgetList" in home.text, "Home route should include model budget list")
     assert_true("runtimeSetupStatus" in home.text, "Home route should include runtime setup status")
     assert_true("runtimeSetupList" in home.text, "Home route should include runtime setup list")
+    assert_true("imageReceiptStatus" in home.text, "Home route should include image receipt status")
+    assert_true("imageReceiptList" in home.text, "Home route should include image receipt list")
 
     health = client.get("/api/health")
     assert_true(health.status_code == 200, "Health route should return 200")
@@ -356,6 +369,14 @@ def verify_routes() -> None:
     assert_true(
         {item["id"] for item in image_payload["descriptions"]} == {"desk-reader", "model-map", "field-notes"},
         "Image route should describe all article images",
+    )
+    assert_true(
+        all(item["generation_model"] == app.MODEL_MANIFEST["image_generation"]["id"] for item in image_payload["descriptions"]),
+        "Image route should expose image-generation provenance",
+    )
+    assert_true(
+        all(item["generation_status"] == "fallback-ready" for item in image_payload["descriptions"]),
+        "Image route should label bundled image fallback status",
     )
 
 

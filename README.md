@@ -79,6 +79,8 @@ The verifier checks syntax, static assets, Space metadata consistency, determini
 
 `/api/accessibility-audit` exposes structured evidence for semantic reading order, keyboard navigation, reader cursor state, shortcut safety, live narration, image alt text, transcript review, user-controlled playback, and fallback resilience.
 
+`/api/image-descriptions` includes image-generation provenance for every article illustration: the planned FLUX.2 klein model, prompt, seed, bundled asset URL, and fallback-ready status.
+
 ## Screen Reader Mode
 
 The frontend builds a reading queue from semantic article nodes. When screen-reader mode is on:
@@ -101,6 +103,8 @@ Global reader shortcuts ignore buttons, links, selects, and inputs so the voice,
 The session panel keeps a transcript of recent narration with copy and clear controls, making the spoken path inspectable during demos and useful for the Field Notes write-up.
 
 Image descriptions are preloaded into a local cache and written into the page's real `img alt` attributes. When the planned MiniCPM-V runtime is unavailable, deterministic alt-text fallbacks keep the screen-reader path usable.
+
+The session panel also renders image receipts from `/api/image-descriptions`, so judges can inspect the prompt, seed, planned <=4B image model, and fallback status behind each bundled article illustration.
 
 Kokoro remains the planned tiny-model TTS path. During local demos, if the server-side Kokoro call falls back, the browser speech engine can read the same transcript so screen-reader mode still produces audible feedback.
 

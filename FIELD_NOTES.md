@@ -30,6 +30,8 @@ Runtime setup is also data-backed. `/api/runtime-setup` lists the app command, l
 
 The judge runbook lives at `/api/demo-script`. It keeps the live presentation repeatable by pairing visible actions with API checks for health, model budget, runtime setup, runtime status, image descriptions, reader narration, and speech.
 
+Image provenance lives in `/api/image-descriptions`. Each article illustration carries the planned FLUX.2 klein model id, prompt, seed, asset URL, and fallback status, and the session panel renders those receipts so the generated-image claim is inspectable.
+
 Accessibility evidence lives at `/api/accessibility-audit`. It records the reader-mode choices that matter most for this prototype: semantic reading order, keyboard navigation, reader cursor state, shortcut safety, live narration, image alt text, transcript review, user-controlled playback, and fallback resilience.
 
 ## Reader Mode Behavior
@@ -58,6 +60,8 @@ Keyboard map:
 Live accessibility demos need dependable behavior. If llama.cpp is not available, the app uses deterministic local narration prefixes. If Kokoro is not installed or cannot load a voice, the app returns a short silent WAV while keeping the transcript visible. If the VLM integration is unavailable, image ids map to cached alt text.
 
 The app preloads image descriptions through `/api/image-descriptions`, caches them in the frontend, and writes the descriptions back into each image's `alt` attribute. That keeps the visible article, transcript, and spoken image narration aligned.
+
+The same payload carries image-generation receipts. In fallback mode, the app is explicit that bundled assets stand in for the FLUX.2 klein runtime instead of presenting static files as live model output.
 
 Kokoro is still the intended model-backed TTS path. For local resilience, the frontend can use the browser speech engine when Kokoro is unavailable, and the session panel labels that as a browser fallback instead of model audio.
 

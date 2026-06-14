@@ -290,7 +290,8 @@ dd {
   margin-top: 22px;
 }
 
-.budget-header {
+.budget-header,
+.image-receipt-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -307,7 +308,8 @@ dd {
 }
 
 .budget-header span,
-.runtime-header span {
+.runtime-header span,
+.image-receipt-header span {
   color: var(--accent-strong);
   font-size: 0.76rem;
   font-weight: 850;
@@ -386,8 +388,17 @@ dd {
   list-style: none;
 }
 
+.image-receipt-list {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
 .budget-list li,
-.runtime-list li {
+.runtime-list li,
+.image-receipt-list li {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 10px 12px;
@@ -395,7 +406,8 @@ dd {
 }
 
 .budget-row,
-.runtime-row {
+.runtime-row,
+.image-receipt-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -406,7 +418,8 @@ dd {
 }
 
 .budget-pill,
-.runtime-pill {
+.runtime-pill,
+.image-receipt-pill {
   border-radius: 999px;
   background: rgba(197, 69, 44, 0.12);
   color: var(--focus);
@@ -419,8 +432,14 @@ dd {
   color: var(--accent-strong);
 }
 
+.image-receipt-pill {
+  background: rgba(244, 211, 94, 0.22);
+  color: #6f4b00;
+}
+
 .budget-list p,
-.runtime-list p {
+.runtime-list p,
+.image-receipt-list p {
   margin: 6px 0 0;
   color: var(--muted);
   font-size: 0.78rem;
