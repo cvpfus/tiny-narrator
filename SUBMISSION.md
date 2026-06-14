@@ -40,11 +40,13 @@ The prototype is designed for a live hackathon demo: every model-facing path has
 - `/api/model-budget`: Tiny Titan parameter proof with numeric `params_billion` values.
 - `/api/runtime-setup`: app command, model runtime commands, environment values, and fallback paths.
 - `/api/runtime-status`: online or fallback-ready status for model paths.
-- `/api/accessibility-audit`: semantic queue, keyboard navigation, live narration, alt text, transcript, user control, and fallback evidence.
+- `/api/accessibility-audit`: semantic queue, keyboard navigation, reader cursor state, shortcut safety, live narration, alt text, transcript, user control, and fallback evidence.
 - `/api/demo-script`: repeatable judge runbook and API checks.
 - `/api/image-descriptions`: generated article image descriptions for reader mode.
 
 The POST checks in `/api/demo-script` include sample JSON bodies for `/api/reader-brain` and `/api/speak`.
+
+The accessibility audit also documents two reader-mode details that matter during judging: the active item is exposed as a reader cursor with focus, visible outline, stable id, and `aria-current`; global shortcuts ignore form controls so voice, speed, and auto-advance settings remain usable while reader mode is active.
 
 ## Reliability notes
 

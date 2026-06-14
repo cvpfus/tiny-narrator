@@ -57,6 +57,8 @@ def verify_static_assets() -> None:
         "nvidia/NVIDIA-Nemotron-3-Nano-4B-GGUF" in submission,
         "Submission packet should include the reader-brain model",
     )
+    for evidence in ["reader cursor", "shortcut safety", "aria-current"]:
+        assert_true(evidence in submission, f"Submission packet should mention {evidence}")
 
 
 def front_matter_value(readme: str, key: str) -> str:
