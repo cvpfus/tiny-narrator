@@ -36,6 +36,8 @@ def verify_static_assets() -> None:
     index_html = (ROOT / "static" / "index.html").read_text(encoding="utf-8")
     assert_true('data-reader-type="heading"' in index_html, "Article should mark heading reader nodes")
     assert_true('data-reader-type="image"' in index_html, "Article should mark image reader nodes")
+    assert_true('href="#notes"' not in index_html, "Article navigation should not include the Field Notes section")
+    assert_true('id="notes"' not in index_html, "Article UI should not render the Field Notes section")
     assert_true('alt=""' not in index_html, "Article images should not start with empty alt text")
     assert_true(
         "reader brain, vision, speech, and image generation models" in index_html,
