@@ -312,6 +312,10 @@ def submission_readiness_core() -> dict[str, Any]:
     api_paths = {item["path"] for item in demo_script["api_checks"]}
     post_checks = [item for item in demo_script["api_checks"] if item["method"] == "POST"]
     post_samples_ready = all(item.get("sample_body") for item in post_checks)
+    commands_use_public_base = all(
+        PUBLIC_BASE_URL in item["curl"] and PUBLIC_BASE_URL in item["powershell"]
+        for item in demo_script["api_checks"]
+    )
     checks = [
         {
             "id": "tiny_titan_budget",
@@ -370,6 +374,12 @@ def submission_readiness_core() -> dict[str, Any]:
             else "fail",
             "evidence": "The judge runbook includes GET evidence checks and executable POST sample bodies.",
         },
+        {
+            "id": "command_base_url",
+            "label": "Command base URL",
+            "status": "pass" if commands_use_public_base else "fail",
+            "evidence": f"Generated curl and curl.exe commands use {PUBLIC_BASE_URL}.",
+        },
     ]
     return {
         "ok": True,
@@ -385,6 +395,7 @@ def evidence_bundle_core() -> dict[str, Any]:
         "ok": True,
         "title": "Tiny Narrator judge evidence bundle",
         "frontend": "custom Gradio Server HTML/CSS/JS",
+        "public_base_url": PUBLIC_BASE_URL,
         "bonus_targets": ARTICLE_MANIFEST["bonus_targets"],
         "models": MODEL_MANIFEST,
         "award_evidence": {"ok": True, "items": AWARD_EVIDENCE},

@@ -425,16 +425,20 @@ def verify_routes() -> None:
             "reader_accessibility",
             "image_receipts",
             "demo_api_checks",
+            "command_base_url",
         },
         "Submission readiness should aggregate model, award, frontend, runtime, accessibility, image, and demo evidence",
     )
     demo_api_check = next(item for item in readiness_payload["checks"] if item["id"] == "demo_api_checks")
     assert_true(demo_api_check["status"] == "pass", "Submission readiness should pass executable demo API checks")
+    command_base_check = next(item for item in readiness_payload["checks"] if item["id"] == "command_base_url")
+    assert_true(command_base_check["status"] == "pass", "Submission readiness should pass command base URL checks")
 
     evidence = client.get("/api/evidence-bundle")
     assert_true(evidence.status_code == 200, "Evidence bundle route should return 200")
     evidence_payload = evidence.json()
     assert_true(evidence_payload["ok"], "Evidence bundle payload should be ok")
+    assert_true(evidence_payload["public_base_url"] == app.PUBLIC_BASE_URL, "Evidence bundle should include public base URL")
     assert_true(evidence_payload["submission_readiness"]["all_passed"], "Evidence bundle should include passing readiness")
     assert_true(evidence_payload["model_budget"]["all_models_within_limit"], "Evidence bundle should include Tiny Titan proof")
     assert_true(
