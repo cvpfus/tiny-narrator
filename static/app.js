@@ -3,6 +3,7 @@ const readerBar = document.querySelector(".reader-bar");
 const modeStatus = document.querySelector("#modeStatus");
 const currentStatus = document.querySelector("#currentStatus");
 const runtimeStatus = document.querySelector("#runtimeStatus");
+const runtimeStatusList = document.querySelector("#runtimeStatusList");
 const modelStatus = document.querySelector("#modelStatus");
 const readinessStatus = document.querySelector("#readinessStatus");
 const imageStatus = document.querySelector("#imageStatus");
@@ -382,8 +383,34 @@ async function loadRuntimeStatus() {
     const brainLabel = brain.available ? "llama.cpp online" : "llama.cpp fallback";
     const speechLabel = speech.available ? "Kokoro online" : "voice fallback";
     readinessStatus.textContent = `${brainLabel}, ${speechLabel}`;
+    const runtimeItems = [
+      ["Reader brain", payload.reader_brain],
+      ["Vision", payload.vision],
+      ["Speech", payload.speech],
+      ["Image generation", payload.image_generation],
+    ];
+    runtimeStatusList.innerHTML = runtimeItems
+      .map(([label, item]) => `
+        <li>
+          <div class="runtime-row">
+            <span>${escapeHtml(label)}</span>
+            <span class="runtime-pill">${escapeHtml(item.status)}</span>
+          </div>
+          <p>${escapeHtml(item.model)}${item.fallback ? ` | ${escapeHtml(item.fallback)}` : ""}</p>
+        </li>
+      `)
+      .join("");
   } catch {
     readinessStatus.textContent = "Fallback ready";
+    runtimeStatusList.innerHTML = `
+      <li>
+        <div class="runtime-row">
+          <span>Runtime status</span>
+          <span class="runtime-pill">offline</span>
+        </div>
+        <p>Live runtime status is unavailable; deterministic fallbacks remain documented.</p>
+      </li>
+    `;
   }
 }
 

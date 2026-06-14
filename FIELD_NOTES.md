@@ -85,4 +85,4 @@ The app exposes `/api/award-evidence` and renders that data in the session panel
 
 The app also renders `/api/submission-readiness`, so the Field Notes story has a single rollup of which submission claims are currently backed by app evidence.
 
-`/api/runtime-status` keeps the demo honest: if llama.cpp or Kokoro is unavailable, the UI labels the fallback state instead of silently pretending that every model path is online.
+`/api/runtime-status` keeps the demo honest: if llama.cpp or Kokoro is unavailable, the UI labels the fallback state instead of silently pretending that every model path is online. The session panel also lists the live or fallback state for reader brain, vision, speech, and image generation.
