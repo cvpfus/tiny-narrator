@@ -30,11 +30,15 @@ Runtime setup is also data-backed. `/api/runtime-setup` lists the app command, l
 
 The judge runbook lives at `/api/demo-script`. It keeps the live presentation repeatable by pairing visible actions with API checks for health, model budget, runtime setup, runtime status, image descriptions, reader narration, and speech.
 
-Accessibility evidence lives at `/api/accessibility-audit`. It records the reader-mode choices that matter most for this prototype: semantic reading order, keyboard navigation, live narration, image alt text, transcript review, user-controlled playback, and fallback resilience.
+Accessibility evidence lives at `/api/accessibility-audit`. It records the reader-mode choices that matter most for this prototype: semantic reading order, keyboard navigation, reader cursor state, shortcut safety, live narration, image alt text, transcript review, user-controlled playback, and fallback resilience.
 
 ## Reader Mode Behavior
 
-The frontend creates a reading queue from semantic nodes: headings, paragraphs, quotes, figures, captions, and controls. It speaks one item at a time, keeps keyboard focus synchronized with the active node, and exposes the current narration through an `aria-live` region.
+The frontend creates a reading queue from semantic nodes: headings, paragraphs, quotes, figures, captions, and controls. It speaks one item at a time, keeps keyboard focus synchronized with the active node, marks that node with `aria-current`, and exposes the current narration through an `aria-live` region.
+
+When screen reader mode turns on, the reader cursor starts at the focused article node or the most visible article node. That makes the feature feel connected to what the user is already reading instead of always jumping back to the top of the page.
+
+Reader shortcuts deliberately ignore form controls. A user can adjust the Kokoro voice, speed slider, and auto-advance checkbox without the page treating those keystrokes as navigation commands.
 
 Each narration is also added to a visible transcript log. This gives the demo a second accessible surface: users can review what was spoken, copy the session transcript, or clear it before exploring another part of the article.
 

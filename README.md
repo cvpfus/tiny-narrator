@@ -77,7 +77,7 @@ The verifier checks syntax, static assets, Space metadata consistency, determini
 
 `/api/demo-script` exposes a compact judge runbook with the visible actions and API checks that prove the submission claims.
 
-`/api/accessibility-audit` exposes structured evidence for semantic reading order, keyboard navigation, live narration, image alt text, transcript review, user-controlled playback, and fallback resilience.
+`/api/accessibility-audit` exposes structured evidence for semantic reading order, keyboard navigation, reader cursor state, shortcut safety, live narration, image alt text, transcript review, user-controlled playback, and fallback resilience.
 
 ## Screen Reader Mode
 
@@ -93,6 +93,10 @@ The frontend builds a reading queue from semantic article nodes. When screen-rea
 - `Esc` stops the current audio.
 
 Each readable node is sent to the reader brain for concise narration, then Kokoro generates speech. If a model is unavailable, the app uses deterministic fallbacks so the demo remains navigable.
+
+When screen-reader mode turns on, it selects the focused or most visible article item, assigns stable reader-node ids, and marks the active item with `aria-current`. Clicking a readable article item while the mode is on reads that item directly.
+
+Global reader shortcuts ignore buttons, links, selects, and inputs so the voice, speed, and auto-advance controls remain usable while reader mode is active.
 
 The session panel keeps a transcript of recent narration with copy and clear controls, making the spoken path inspectable during demos and useful for the Field Notes write-up.
 

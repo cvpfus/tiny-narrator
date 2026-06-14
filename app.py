@@ -280,6 +280,18 @@ def accessibility_audit_core() -> dict[str, Any]:
             "evidence": "Reader controls expose Space, N, P, H, I, S, R, and Esc shortcuts through the manifest.",
         },
         {
+            "id": "reader_cursor",
+            "label": "Reader cursor state",
+            "status": "pass",
+            "evidence": "The active readable node receives focus, a visible outline, a stable reader id, and aria-current state.",
+        },
+        {
+            "id": "shortcut_safety",
+            "label": "Shortcut safety",
+            "status": "pass",
+            "evidence": "Global reader shortcuts ignore form controls so voice, speed, and auto-advance settings remain usable.",
+        },
+        {
             "id": "live_region",
             "label": "Live narration region",
             "status": "pass",

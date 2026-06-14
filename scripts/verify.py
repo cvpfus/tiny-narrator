@@ -324,8 +324,16 @@ def verify_routes() -> None:
     assert_true(audit_payload["passed_checks"] == audit_payload["total_checks"], "All audit checks should pass")
     assert_true(
         {item["id"] for item in audit_payload["checks"]}
-        >= {"semantic_queue", "keyboard_navigation", "live_region", "image_alt_text", "inspectable_transcript"},
-        "Accessibility audit should cover reader semantics, keyboard use, live narration, alt text, and transcript",
+        >= {
+            "semantic_queue",
+            "keyboard_navigation",
+            "reader_cursor",
+            "shortcut_safety",
+            "live_region",
+            "image_alt_text",
+            "inspectable_transcript",
+        },
+        "Accessibility audit should cover reader semantics, keyboard use, cursor state, shortcut safety, live narration, alt text, and transcript",
     )
 
     runtime = client.get("/api/runtime-status")
