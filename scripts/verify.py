@@ -44,12 +44,22 @@ def verify_static_assets() -> None:
     assert_true('href="/generate" aria-current="page">Generate' in generate_html, "Generate page should mark Generate route current")
     assert_true("articleGeneratorForm" in generate_html, "Generate page should expose the article generator form")
     assert_true("generatedThumbnail" in generate_html, "Generate page should expose a generated thumbnail preview")
+    assert_true("readerToggle" in generate_html, "Generate page should expose a screen reader toggle")
+    assert_true("transcriptLog" in generate_html, "Generate page should expose a narration transcript")
+    assert_true("speechAudio" in generate_html, "Generate page should expose speech playback")
     assert_true("/api/generate-article" in generate_js, "Generate frontend should call article generation API")
+    assert_true("/api/reader-brain" in generate_js, "Generate frontend should call reader-brain narration API")
+    assert_true("/api/speak" in generate_js, "Generate frontend should call speech API")
+    assert_true("refreshReaderNodes" in generate_js, "Generate frontend should build a generated article reader path")
+    assert_true('data-reader-type="heading"' in generate_js, "Generated article sections should mark heading reader nodes")
+    assert_true('data-reader-type="paragraph"' in generate_js, "Generated article sections should mark paragraph reader nodes")
     assert_true("thumbnail.generation_model" in generate_js, "Generate frontend should render Klein thumbnail receipt")
     assert_true('data-reader-type="heading"' in index_html, "Article should mark heading reader nodes")
     assert_true('data-reader-type="image"' in index_html, "Article should mark image reader nodes")
     assert_true('href="#notes"' not in index_html, "Article navigation should not include the Field Notes section")
     assert_true('id="notes"' not in index_html, "Article UI should not render the Field Notes section")
+    assert_true("Field Notes" not in index_html, "Article UI should not render Field Notes copy")
+    assert_true("Field Notes" not in generate_html, "Generate UI should not render Field Notes copy")
     assert_true('alt=""' not in index_html, "Article images should not start with empty alt text")
     assert_true(
         "reader brain, vision, speech, and image generation models" in index_html,
@@ -196,7 +206,7 @@ def verify_core_fallbacks() -> None:
 
     article_descriptions = app.describe_article_images_core()
     assert_true(article_descriptions["ok"], "Article image descriptions did not return ok")
-    assert_true(len(article_descriptions["descriptions"]) == 3, "Article should expose three image descriptions")
+    assert_true(len(article_descriptions["descriptions"]) == 2, "Article should expose two image descriptions")
     assert_true(
         all(item["generation_model"] == app.MODEL_MANIFEST["image_generation"]["id"] for item in article_descriptions["descriptions"]),
         "Article image descriptions should include the planned image-generation model",
@@ -278,6 +288,10 @@ def verify_routes() -> None:
     assert_true("Generate a readable article" in generate_page.text, "Generate route should include generator title")
     assert_true("articleGeneratorForm" in generate_page.text, "Generate route should include article generator form")
     assert_true("generatedThumbnail" in generate_page.text, "Generate route should include generated thumbnail")
+    assert_true("readerToggle" in generate_page.text, "Generate route should include reader toggle")
+    assert_true("summaryButton" in generate_page.text, "Generate route should include summary control")
+    assert_true("transcriptLog" in generate_page.text, "Generate route should include transcript log")
+    assert_true("speechAudio" in generate_page.text, "Generate route should include speech playback")
 
     health = client.get("/api/health")
     assert_true(health.status_code == 200, "Health route should return 200")
@@ -554,8 +568,8 @@ def verify_routes() -> None:
     image_payload = image_descriptions.json()
     assert_true(image_payload["model"] == "OpenBMB MiniCPM-V-2", "Image route should document MiniCPM-V model")
     assert_true(
-        {item["id"] for item in image_payload["descriptions"]} == {"desk-reader", "model-map", "field-notes"},
-        "Image route should describe all article images",
+        {item["id"] for item in image_payload["descriptions"]} == {"desk-reader", "model-map"},
+        "Image route should describe all visible article images",
     )
     assert_true(
         all(item["generation_model"] == app.MODEL_MANIFEST["image_generation"]["id"] for item in image_payload["descriptions"]),

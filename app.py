@@ -83,16 +83,6 @@ ARTICLE_IMAGES: list[dict[str, Any]] = [
         "generation_runtime": "bundled fallback asset",
         "generation_status": "fallback-ready",
     },
-    {
-        "id": "field-notes",
-        "asset_url": "/static/generated/field-notes.svg",
-        "caption": "Field notes document the choices behind the screen-reader behavior.",
-        "prompt": "Notebook page with model sizes, keyboard controls, and accessibility checks.",
-        "seed": 33,
-        "generation_model": "black-forest-labs/FLUX.2-klein-4B",
-        "generation_runtime": "bundled fallback asset",
-        "generation_status": "fallback-ready",
-    },
 ]
 
 READER_SETTINGS: dict[str, Any] = {
@@ -301,7 +291,7 @@ def demo_script_core() -> dict[str, Any]:
                 "step": 4,
                 "label": "Inspect small-model receipts",
                 "action": "Review the checklist, model budget, runtime plan, readiness, latency, and transcript panels.",
-                "evidence": "Tiny Titan, Llama Champion, Off-Brand, and Field Notes evidence is visible.",
+                "evidence": "Tiny Titan, Llama Champion, Off-Brand, and reader evidence is exposed through the app and APIs.",
             },
         ],
         "api_checks": api_checks,
@@ -765,9 +755,6 @@ def describe_image_core(image_id: str, caption: str | None, prompt: str | None) 
             "A compact diagram showing four small AI models working together: vision, "
             "reader brain, speech, and image generation."
         ),
-        "field-notes": (
-            "A notebook page with short build notes, model sizes, and accessibility checks."
-        ),
     }
     alt_text = descriptions.get(
         image_id,
@@ -864,7 +851,7 @@ def generate_image_core(prompt: str, seed: int | None) -> dict[str, Any]:
         "ok": True,
         "runtime": "placeholder",
         "model": "black-forest-labs/FLUX.2-klein-4B",
-        "image_url": f"/static/generated/{'field-notes.svg' if seed == 3 else 'model-map.svg'}",
+        "image_url": f"/static/generated/{'desk-reader.svg' if seed and seed % 2 else 'model-map.svg'}",
         "prompt": prompt,
         "seed": seed,
         "elapsed_ms": _elapsed_ms(start),
