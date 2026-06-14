@@ -156,6 +156,7 @@ function renderReaderQueue() {
           <span class="runtime-pill">${node.index === currentIndex ? "current" : "queued"}</span>
         </div>
         <p>${escapeHtml(node.text.slice(0, 120))}</p>
+        <button class="reader-queue-play" type="button" data-reader-index="${node.index}">Read item</button>
       </li>
     `)
     .join("");
@@ -764,6 +765,12 @@ nodes.forEach((node) => {
     if (!enabled || isControlTarget(event.target)) return;
     narrate(node.index);
   });
+});
+readerQueueList.addEventListener("click", (event) => {
+  const button = event.target.closest(".reader-queue-play");
+  if (!button) return;
+  setEnabled(true);
+  narrate(Number(button.dataset.readerIndex));
 });
 voiceControl.addEventListener("change", () => {
   voiceStatus.textContent = voiceControl.selectedOptions[0]?.textContent || "Custom voice";

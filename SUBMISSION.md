@@ -6,7 +6,7 @@ Tiny Narrator turns an article into a guided screen-reader experience using smal
 
 ## Short description
 
-Tiny Narrator is a custom Gradio Server app that looks like an article/blog reader until screen-reader mode is switched on. In reader mode, the app builds and displays a semantic reading queue, narrates headings and paragraphs, describes generated images, summarizes the current section, speaks with Kokoro, and keeps a visible transcript of the spoken path with reader position, runtime, and latency.
+Tiny Narrator is a custom Gradio Server app that looks like an article/blog reader until screen-reader mode is switched on. In reader mode, the app builds and displays a semantic reading queue with click-to-read controls, narrates headings and paragraphs, describes generated images, summarizes the current section, speaks with Kokoro, and keeps a visible transcript of the spoken path with reader position, runtime, and latency.
 
 The prototype is designed for a live hackathon demo: every model-facing path has a deterministic fallback, runtime readiness is labeled in the UI, and the repo exposes machine-readable evidence for model size, setup, demo flow, and accessibility behavior.
 

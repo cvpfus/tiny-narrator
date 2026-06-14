@@ -40,7 +40,7 @@ Accessibility evidence lives at `/api/accessibility-audit`. It records the reade
 
 ## Reader Mode Behavior
 
-The frontend creates a reading queue from semantic nodes: headings, paragraphs, quotes, figures, captions, and controls. It renders that same queue in the session panel, speaks one item at a time, keeps keyboard focus synchronized with the active node, marks that node with `aria-current`, and exposes the current narration through an `aria-live` region.
+The frontend creates a reading queue from semantic nodes: headings, paragraphs, quotes, figures, captions, and controls. It renders that same queue in the session panel with click-to-read controls, speaks one item at a time, keeps keyboard focus synchronized with the active node, marks that node with `aria-current`, and exposes the current narration through an `aria-live` region.
 
 When screen reader mode turns on, the reader cursor starts at the focused article node or the most visible article node. That makes the feature feel connected to what the user is already reading instead of always jumping back to the top of the page.
 

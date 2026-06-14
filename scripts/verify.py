@@ -84,6 +84,8 @@ def verify_static_assets() -> None:
     assert_true("reader-node-" in app_js, "Reader nodes should receive stable ids for control context")
     assert_true("renderReaderQueue" in app_js, "Frontend should render the semantic reader queue")
     assert_true("readerQueueStatus.textContent" in app_js, "Reader queue should expose item count")
+    assert_true("reader-queue-play" in app_js, "Reader queue should expose click-to-read controls")
+    assert_true("readerQueueList.addEventListener" in app_js, "Reader queue should handle click-to-read actions")
     assert_true("narrate(node.index)" in app_js, "Reader mode should support click-to-read article items")
 
     submission = (ROOT / "SUBMISSION.md").read_text(encoding="utf-8")
