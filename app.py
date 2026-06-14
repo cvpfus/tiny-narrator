@@ -354,6 +354,23 @@ def submission_readiness_core() -> dict[str, Any]:
     }
 
 
+def evidence_bundle_core() -> dict[str, Any]:
+    return {
+        "ok": True,
+        "title": "Tiny Narrator judge evidence bundle",
+        "frontend": "custom Gradio Server HTML/CSS/JS",
+        "bonus_targets": ARTICLE_MANIFEST["bonus_targets"],
+        "models": MODEL_MANIFEST,
+        "award_evidence": {"ok": True, "items": AWARD_EVIDENCE},
+        "model_budget": model_budget_core(),
+        "runtime_setup": runtime_setup_core(),
+        "demo_script": demo_script_core(),
+        "accessibility_audit": accessibility_audit_core(),
+        "image_descriptions": describe_article_images_core(),
+        "submission_readiness": submission_readiness_core(),
+    }
+
+
 def accessibility_audit_core() -> dict[str, Any]:
     checks = [
         {
@@ -792,6 +809,11 @@ async def submission_readiness() -> JSONResponse:
     return _json(submission_readiness_core())
 
 
+@app.get("/api/evidence-bundle")
+async def evidence_bundle() -> JSONResponse:
+    return _json(evidence_bundle_core())
+
+
 @app.get("/api/runtime-status")
 async def runtime_status() -> JSONResponse:
     return _json(_runtime_status_core())
@@ -860,6 +882,11 @@ def accessibility_audit_api() -> str:
 @app.api(name="submission_readiness")
 def submission_readiness_api() -> str:
     return json.dumps(submission_readiness_core())
+
+
+@app.api(name="evidence_bundle")
+def evidence_bundle_api() -> str:
+    return json.dumps(evidence_bundle_core())
 
 
 @app.api(name="speak")

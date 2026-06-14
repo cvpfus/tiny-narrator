@@ -44,6 +44,7 @@ The prototype is designed for a live hackathon demo: every model-facing path has
 - `/api/demo-script`: repeatable judge runbook and API checks.
 - `/api/image-descriptions`: generated article image descriptions plus prompt, seed, model, asset URL, and fallback status receipts.
 - `/api/submission-readiness`: one pass/fail rollup for model budget, award evidence, custom frontend, runtime setup, accessibility, image receipts, and demo API checks.
+- `/api/evidence-bundle`: copyable JSON bundle containing the core judge evidence receipts.
 
 The POST checks in `/api/demo-script` include sample JSON bodies for `/api/reader-brain` and `/api/speak`.
 
@@ -52,6 +53,8 @@ The accessibility audit also documents two reader-mode details that matter durin
 The image receipts keep the generated-asset claim inspectable: each article illustration names the planned `black-forest-labs/FLUX.2-klein-4B` path, prompt, seed, and bundled fallback asset.
 
 The submission-readiness panel and API give judges a compact checklist for the whole build, so the live demo can move from individual receipts to an overall readiness view.
+
+The Copy Evidence button pulls `/api/evidence-bundle` and writes the formatted JSON bundle to the clipboard for quick judging notes.
 
 ## Reliability notes
 

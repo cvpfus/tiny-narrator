@@ -52,7 +52,7 @@ Start the app:
 python app.py
 ```
 
-Open the local URL printed by Gradio. The custom frontend calls `/api/reader-brain`, `/api/image-descriptions`, `/api/describe-image`, `/api/speak`, `/api/generate-image`, `/api/model-budget`, `/api/runtime-setup`, `/api/demo-script`, `/api/accessibility-audit`, and `/api/submission-readiness`.
+Open the local URL printed by Gradio. The custom frontend calls `/api/reader-brain`, `/api/image-descriptions`, `/api/describe-image`, `/api/speak`, `/api/generate-image`, `/api/model-budget`, `/api/runtime-setup`, `/api/demo-script`, `/api/accessibility-audit`, `/api/submission-readiness`, and `/api/evidence-bundle`.
 
 Useful environment variables:
 
@@ -82,6 +82,8 @@ The verifier checks syntax, static assets, Space metadata consistency, determini
 `/api/image-descriptions` includes image-generation provenance for every article illustration: the planned FLUX.2 klein model, prompt, seed, bundled asset URL, and fallback-ready status.
 
 `/api/submission-readiness` aggregates the judging receipts into one pass/fail payload covering model budget, award evidence, custom frontend assets, runtime setup, accessibility, image receipts, and demo API checks.
+
+`/api/evidence-bundle` returns a copyable JSON bundle of the main judging receipts. The Submission Readiness panel includes a Copy Evidence button that writes this bundle to the clipboard.
 
 ## Screen Reader Mode
 
@@ -123,6 +125,8 @@ Reader-brain, image-description, speech, and image-generation responses include 
 The session panel renders the judge runbook and API evidence checks from `/api/demo-script`, plus manifest-backed evidence for Tiny Titan, Llama Champion, Off-Brand, and Field Notes. A model-budget panel reads `/api/model-budget` so judges can see each role's parameter count in the live app.
 
 A submission-readiness panel reads `/api/submission-readiness`, giving judges one compact rollup of the claims the live app can prove.
+
+The Copy Evidence button reads `/api/evidence-bundle` and copies the core judge receipts as formatted JSON for quick review or submission notes.
 
 A runtime-plan panel reads `/api/runtime-setup` and summarizes each model path's runtime plus fallback, keeping the live demo honest about what is online and what is deterministic.
 

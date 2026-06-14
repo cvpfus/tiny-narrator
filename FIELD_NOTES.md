@@ -32,6 +32,8 @@ The judge runbook lives at `/api/demo-script` and is rendered in the session pan
 
 Submission readiness lives at `/api/submission-readiness`. It aggregates the demo-critical checks into one payload: model budget, award evidence, custom frontend assets, runtime setup, accessibility audit, image receipts, and executable demo API checks.
 
+The copyable judge evidence bundle lives at `/api/evidence-bundle`. The session panel's Copy Evidence button uses that endpoint to put the core receipts on the clipboard as formatted JSON.
+
 Image provenance lives in `/api/image-descriptions`. Each article illustration carries the planned FLUX.2 klein model id, prompt, seed, asset URL, and fallback status, and the session panel renders those receipts so the generated-image claim is inspectable.
 
 Accessibility evidence lives at `/api/accessibility-audit`. It records the reader-mode choices that matter most for this prototype: semantic reading order, keyboard navigation, reader cursor state, shortcut safety, live narration, image alt text, transcript review, user-controlled playback, and fallback resilience.

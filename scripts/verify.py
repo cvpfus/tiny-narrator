@@ -42,8 +42,10 @@ def verify_static_assets() -> None:
     assert_true("demoApiCheckList" in index_html, "Article should expose judge API evidence checks")
     assert_true("imageReceiptList" in index_html, "Article should expose generated image receipts")
     assert_true("submissionReadinessList" in index_html, "Article should expose submission readiness checks")
+    assert_true("copyEvidenceButton" in index_html, "Article should expose a copyable evidence bundle button")
     assert_true("loadDemoScript" in app_js, "Frontend should render the structured demo script")
     assert_true("payload.api_checks" in app_js, "Frontend should render structured demo API checks")
+    assert_true("/api/evidence-bundle" in app_js, "Frontend should fetch the evidence bundle for copying")
     assert_true("function haltPlayback" in app_js, "Reader controls should expose a shared playback halt helper")
     assert_true(
         "haltPlayback({ clearAutoAdvance: false });" in app_js,
@@ -63,6 +65,7 @@ def verify_static_assets() -> None:
         "/api/accessibility-audit",
         "/api/demo-script",
         "/api/submission-readiness",
+        "/api/evidence-bundle",
     ]:
         assert_true(endpoint in submission, f"Submission packet should mention {endpoint}")
     assert_true(
@@ -210,6 +213,7 @@ def verify_routes() -> None:
     assert_true("awardEvidenceList" in home.text, "Home route should include award evidence list")
     assert_true("submissionReadinessStatus" in home.text, "Home route should include submission readiness status")
     assert_true("submissionReadinessList" in home.text, "Home route should include submission readiness list")
+    assert_true("copyEvidenceButton" in home.text, "Home route should include copy evidence button")
     assert_true("budgetStatus" in home.text, "Home route should include model budget status")
     assert_true("modelBudgetList" in home.text, "Home route should include model budget list")
     assert_true("runtimeSetupStatus" in home.text, "Home route should include runtime setup status")
@@ -388,6 +392,17 @@ def verify_routes() -> None:
             "demo_api_checks",
         },
         "Submission readiness should aggregate model, award, frontend, runtime, accessibility, image, and demo evidence",
+    )
+
+    evidence = client.get("/api/evidence-bundle")
+    assert_true(evidence.status_code == 200, "Evidence bundle route should return 200")
+    evidence_payload = evidence.json()
+    assert_true(evidence_payload["ok"], "Evidence bundle payload should be ok")
+    assert_true(evidence_payload["submission_readiness"]["all_passed"], "Evidence bundle should include passing readiness")
+    assert_true(evidence_payload["model_budget"]["all_models_within_limit"], "Evidence bundle should include Tiny Titan proof")
+    assert_true(
+        {"demo_script", "accessibility_audit", "image_descriptions"} <= set(evidence_payload),
+        "Evidence bundle should include demo script, accessibility audit, and image descriptions",
     )
 
     runtime = client.get("/api/runtime-status")

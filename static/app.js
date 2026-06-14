@@ -23,6 +23,7 @@ const demoApiCheckList = document.querySelector("#demoApiCheckList");
 const awardEvidenceList = document.querySelector("#awardEvidenceList");
 const submissionReadinessStatus = document.querySelector("#submissionReadinessStatus");
 const submissionReadinessList = document.querySelector("#submissionReadinessList");
+const copyEvidenceButton = document.querySelector("#copyEvidenceButton");
 const budgetStatus = document.querySelector("#budgetStatus");
 const modelBudgetList = document.querySelector("#modelBudgetList");
 const runtimeSetupStatus = document.querySelector("#runtimeSetupStatus");
@@ -697,6 +698,20 @@ clearTranscriptButton.addEventListener("click", () => {
   transcriptEntries = [];
   renderTranscript();
   liveNarration.textContent = "Transcript cleared.";
+});
+copyEvidenceButton.addEventListener("click", async () => {
+  try {
+    const payload = await postJson("/api/evidence-bundle");
+    const text = JSON.stringify(payload, null, 2);
+    if (!navigator.clipboard) {
+      liveNarration.textContent = "Evidence bundle loaded, but clipboard access is unavailable.";
+      return;
+    }
+    await navigator.clipboard.writeText(text);
+    liveNarration.textContent = "Evidence bundle copied.";
+  } catch (error) {
+    liveNarration.textContent = `Evidence bundle failed: ${error.message}`;
+  }
 });
 controls.play.addEventListener("click", () => {
   if (!enabled) return;

@@ -334,7 +334,8 @@ dd {
   text-transform: uppercase;
 }
 
-.history-header button {
+.history-header button,
+.submission-header button {
   min-height: 34px;
   border-radius: 6px;
   padding: 0 10px;
