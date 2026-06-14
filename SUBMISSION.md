@@ -32,7 +32,7 @@ The prototype is designed for a live hackathon demo: every model-facing path has
 2. Turn on screen-reader mode and press `Space` or `Next` to narrate the first semantic node.
 3. Use `Heading`, `Image`, and `Summary` to navigate by article meaning instead of by raw page order.
 4. Show the session panel: transcript, runtime readiness, latency, judge runbook, award evidence, model budget, and runtime plan.
-5. Mention that `/api/demo-script` exposes the same judge runbook as structured data.
+5. Mention that `/api/demo-script` exposes the same judge runbook and API evidence checks as structured data.
 
 ## Evidence endpoints
 

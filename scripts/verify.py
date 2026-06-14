@@ -39,9 +39,11 @@ def verify_static_assets() -> None:
     assert_true('aria-live="polite"' in index_html, "Article should expose an aria-live narration region")
     assert_true("transcriptLog" in index_html, "Article should expose a visible transcript log")
     assert_true("demoScriptList" in index_html, "Article should expose the judge demo runbook")
+    assert_true("demoApiCheckList" in index_html, "Article should expose judge API evidence checks")
     assert_true("imageReceiptList" in index_html, "Article should expose generated image receipts")
     assert_true("submissionReadinessList" in index_html, "Article should expose submission readiness checks")
     assert_true("loadDemoScript" in app_js, "Frontend should render the structured demo script")
+    assert_true("payload.api_checks" in app_js, "Frontend should render structured demo API checks")
     assert_true("function haltPlayback" in app_js, "Reader controls should expose a shared playback halt helper")
     assert_true(
         "haltPlayback({ clearAutoAdvance: false });" in app_js,
@@ -204,6 +206,7 @@ def verify_routes() -> None:
     assert_true("transcriptLog" in home.text, "Home route should include transcript log")
     assert_true("demoScriptStatus" in home.text, "Home route should include demo script status")
     assert_true("demoScriptList" in home.text, "Home route should include demo script list")
+    assert_true("demoApiCheckList" in home.text, "Home route should include demo API check list")
     assert_true("awardEvidenceList" in home.text, "Home route should include award evidence list")
     assert_true("submissionReadinessStatus" in home.text, "Home route should include submission readiness status")
     assert_true("submissionReadinessList" in home.text, "Home route should include submission readiness list")

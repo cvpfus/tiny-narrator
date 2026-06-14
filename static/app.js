@@ -19,6 +19,7 @@ const copyTranscriptButton = document.querySelector("#copyTranscriptButton");
 const clearTranscriptButton = document.querySelector("#clearTranscriptButton");
 const demoScriptStatus = document.querySelector("#demoScriptStatus");
 const demoScriptList = document.querySelector("#demoScriptList");
+const demoApiCheckList = document.querySelector("#demoApiCheckList");
 const awardEvidenceList = document.querySelector("#awardEvidenceList");
 const submissionReadinessStatus = document.querySelector("#submissionReadinessStatus");
 const submissionReadinessList = document.querySelector("#submissionReadinessList");
@@ -244,6 +245,15 @@ async function loadDemoScript() {
         </li>
       `)
       .join("");
+    demoApiCheckList.innerHTML = payload.api_checks
+      .map((item) => `
+        <li>
+          <span>${escapeHtml(item.method)}</span>
+          <code>${escapeHtml(item.path)}</code>
+          <p>${escapeHtml(item.expect)}${item.sample_body ? " Sample body included." : ""}</p>
+        </li>
+      `)
+      .join("");
   } catch {
     demoScriptStatus.textContent = "Unavailable";
     demoScriptList.innerHTML = `
@@ -255,6 +265,7 @@ async function loadDemoScript() {
         <p>The structured demo script is unavailable.</p>
       </li>
     `;
+    demoApiCheckList.innerHTML = "";
   }
 }
 
