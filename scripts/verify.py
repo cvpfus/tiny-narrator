@@ -227,6 +227,7 @@ def verify_routes() -> None:
     assert_true(health.status_code == 200, "Health route should return 200")
     payload = health.json()
     assert_true(payload["ok"], "Health payload should be ok")
+    assert_true(payload["public_base_url"] == app.PUBLIC_BASE_URL, "Health route should expose the public command base URL")
     assert_true(
         payload["models"]["reader_brain"]["runtime"] == "llama.cpp",
         "Health route should document llama.cpp reader-brain runtime",
@@ -310,6 +311,10 @@ def verify_routes() -> None:
         "llama-server" in setup_payload["steps"][0]["command"],
         "Runtime setup should include the llama.cpp launch command",
     )
+    assert_true(
+        setup_payload["app"]["env"]["PUBLIC_BASE_URL"] == app.PUBLIC_BASE_URL,
+        "Runtime setup should expose the public command base URL",
+    )
 
     demo = client.get("/api/demo-script")
     assert_true(demo.status_code == 200, "Demo script route should return 200")
@@ -351,8 +356,16 @@ def verify_routes() -> None:
         "Every demo API check should include a curl command",
     )
     assert_true(
+        all(app.PUBLIC_BASE_URL in item["curl"] for item in demo_payload["api_checks"]),
+        "Every curl command should use the public command base URL",
+    )
+    assert_true(
         all(item["powershell"].startswith("curl.exe ") for item in demo_payload["api_checks"]),
         "Every demo API check should include a PowerShell-friendly curl.exe command",
+    )
+    assert_true(
+        all(app.PUBLIC_BASE_URL in item["powershell"] for item in demo_payload["api_checks"]),
+        "Every PowerShell command should use the public command base URL",
     )
     assert_true(
         "-d '" in reader_check["curl"] and "/api/reader-brain" in reader_check["curl"],

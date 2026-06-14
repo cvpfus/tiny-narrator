@@ -28,7 +28,7 @@ The app exposes the same budget through `/api/model-budget`, including numeric `
 
 Runtime setup is also data-backed. `/api/runtime-setup` lists the app command, llama.cpp launch command, model-specific runtime paths, environment values, and fallbacks. The session panel renders a compact version so the demo can distinguish real model wiring from deterministic safety nets.
 
-The judge runbook lives at `/api/demo-script` and is rendered in the session panel with its API evidence checks. It keeps the live presentation repeatable by pairing visible actions with API checks for health, model budget, runtime setup, runtime status, image descriptions, reader narration, and speech. Each API check includes curl and PowerShell-friendly `curl.exe` commands for quick reproduction.
+The judge runbook lives at `/api/demo-script` and is rendered in the session panel with its API evidence checks. It keeps the live presentation repeatable by pairing visible actions with API checks for health, model budget, runtime setup, runtime status, image descriptions, reader narration, and speech. Each API check includes curl and PowerShell-friendly `curl.exe` commands for quick reproduction. Deployed demos can set `PUBLIC_BASE_URL` so those commands point at the public Space instead of localhost.
 
 Submission readiness lives at `/api/submission-readiness`. It aggregates the demo-critical checks into one payload: model budget, award evidence, custom frontend assets, runtime setup, accessibility audit, image receipts, and executable demo API checks. POST checks must include sample bodies before readiness passes.
 

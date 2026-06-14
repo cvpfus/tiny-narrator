@@ -27,6 +27,7 @@ LLAMA_CPP_BASE_URL = os.getenv("LLAMA_CPP_BASE_URL", "http://localhost:8080/v1")
 LLAMA_CPP_MODEL = os.getenv("LLAMA_CPP_MODEL", "narrator-brain")
 GRADIO_SERVER_NAME = os.getenv("GRADIO_SERVER_NAME", "0.0.0.0")
 GRADIO_SERVER_PORT = int(os.getenv("PORT", os.getenv("GRADIO_SERVER_PORT", "7860")))
+PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", f"http://localhost:{GRADIO_SERVER_PORT}").rstrip("/")
 TINY_TITAN_LIMIT_B = 4.0
 
 MODEL_MANIFEST: dict[str, dict[str, Any]] = {
@@ -167,6 +168,7 @@ def runtime_setup_core() -> dict[str, Any]:
             "env": {
                 "GRADIO_SERVER_NAME": GRADIO_SERVER_NAME,
                 "GRADIO_SERVER_PORT": str(GRADIO_SERVER_PORT),
+                "PUBLIC_BASE_URL": PUBLIC_BASE_URL,
             },
         },
         "steps": [
@@ -214,7 +216,7 @@ def runtime_setup_core() -> dict[str, Any]:
 
 
 def demo_curl_command(check: dict[str, Any]) -> str:
-    url = f"http://localhost:7860{check['path']}"
+    url = f"{PUBLIC_BASE_URL}{check['path']}"
     if check["method"] == "GET":
         return f"curl {url}"
     sample_body = json.dumps(check["sample_body"], separators=(",", ":"))
@@ -222,7 +224,7 @@ def demo_curl_command(check: dict[str, Any]) -> str:
 
 
 def demo_powershell_command(check: dict[str, Any]) -> str:
-    url = f"http://localhost:7860{check['path']}"
+    url = f"{PUBLIC_BASE_URL}{check['path']}"
     if check["method"] == "GET":
         return f"curl.exe {url}"
     sample_body = json.dumps(check["sample_body"], separators=(",", ":")).replace('"', '\\"')
@@ -793,6 +795,7 @@ async def health() -> JSONResponse:
             "app": "Tiny Narrator",
             "frontend": "custom Gradio Server HTML/CSS/JS",
             "llama_cpp_base_url": LLAMA_CPP_BASE_URL,
+            "public_base_url": PUBLIC_BASE_URL,
             "models": MODEL_MANIFEST,
         }
     )

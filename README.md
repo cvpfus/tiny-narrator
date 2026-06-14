@@ -62,6 +62,7 @@ Useful environment variables:
 | `LLAMA_CPP_MODEL` | `narrator-brain` | Alias passed to llama.cpp |
 | `GRADIO_SERVER_NAME` | `0.0.0.0` | Bind address for local or Space runtime |
 | `GRADIO_SERVER_PORT` / `PORT` | `7860` | App port |
+| `PUBLIC_BASE_URL` | `http://localhost:7860` | Base URL used in generated judge API commands |
 
 ## Verification
 
@@ -75,7 +76,7 @@ The verifier checks syntax, static assets, Space metadata consistency, determini
 
 `/api/runtime-setup` exposes the commands, environment values, and fallback paths used for the model stack so the demo can be reproduced from the same data the UI displays.
 
-`/api/demo-script` exposes a compact judge runbook with the visible actions, API checks, sample bodies, curl commands, and PowerShell-friendly `curl.exe` commands that prove the submission claims. The session panel renders those actions and API evidence checks as the Judge Runbook.
+`/api/demo-script` exposes a compact judge runbook with the visible actions, API checks, sample bodies, curl commands, and PowerShell-friendly `curl.exe` commands that prove the submission claims. The commands use `PUBLIC_BASE_URL`, and the session panel renders those actions and API evidence checks as the Judge Runbook.
 
 `/api/accessibility-audit` exposes structured evidence for semantic reading order, keyboard navigation, reader cursor state, shortcut safety, live narration, image alt text, transcript review, user-controlled playback, and fallback resilience.
 
