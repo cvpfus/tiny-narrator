@@ -111,6 +111,20 @@ function addTranscriptEntry(entry) {
   renderTranscript();
 }
 
+async function copyTextToClipboard(text, successMessage, emptyMessage, unavailableMessage) {
+  if (!text) {
+    liveNarration.textContent = emptyMessage;
+    return false;
+  }
+  if (!navigator.clipboard) {
+    liveNarration.textContent = unavailableMessage;
+    return false;
+  }
+  await navigator.clipboard.writeText(text);
+  liveNarration.textContent = successMessage;
+  return true;
+}
+
 function readerTypeLabel(type) {
   return {
     heading: "Heading",
@@ -737,8 +751,12 @@ copyTranscriptButton.addEventListener("click", async () => {
     .reverse()
     .map((entry) => `[${entry.type} / ${entry.runtime}] ${entry.text}`)
     .join("\n");
-  await navigator.clipboard?.writeText(text);
-  liveNarration.textContent = text ? "Transcript copied." : "Transcript is empty.";
+  await copyTextToClipboard(
+    text,
+    "Transcript copied.",
+    "Transcript is empty.",
+    "Transcript is visible, but clipboard access is unavailable.",
+  );
 });
 clearTranscriptButton.addEventListener("click", () => {
   transcriptEntries = [];
@@ -749,12 +767,12 @@ copyEvidenceButton.addEventListener("click", async () => {
   try {
     const payload = await postJson("/api/evidence-bundle");
     const text = JSON.stringify(payload, null, 2);
-    if (!navigator.clipboard) {
-      liveNarration.textContent = "Evidence bundle loaded, but clipboard access is unavailable.";
-      return;
-    }
-    await navigator.clipboard.writeText(text);
-    liveNarration.textContent = "Evidence bundle copied.";
+    await copyTextToClipboard(
+      text,
+      "Evidence bundle copied.",
+      "Evidence bundle is empty.",
+      "Evidence bundle loaded, but clipboard access is unavailable.",
+    );
   } catch (error) {
     liveNarration.textContent = `Evidence bundle failed: ${error.message}`;
   }
@@ -763,12 +781,12 @@ demoApiCheckList.addEventListener("click", async (event) => {
   const button = event.target.closest(".demo-command-copy");
   if (!button) return;
   const command = button.dataset.command || "";
-  if (!navigator.clipboard) {
-    liveNarration.textContent = "Command is visible, but clipboard access is unavailable.";
-    return;
-  }
-  await navigator.clipboard.writeText(command);
-  liveNarration.textContent = "Demo command copied.";
+  await copyTextToClipboard(
+    command,
+    "Demo command copied.",
+    "Demo command is empty.",
+    "Command is visible, but clipboard access is unavailable.",
+  );
 });
 controls.play.addEventListener("click", () => {
   if (!enabled) return;

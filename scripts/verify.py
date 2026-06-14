@@ -55,6 +55,11 @@ def verify_static_assets() -> None:
     assert_true("demo-command-copy" in app_js, "Frontend should expose copy buttons for demo commands")
     assert_true("item.powershell" in app_js, "Frontend should render PowerShell-friendly demo commands")
     assert_true("/api/evidence-bundle" in app_js, "Frontend should fetch the evidence bundle for copying")
+    assert_true("copyTextToClipboard" in app_js, "Frontend copy actions should share clipboard fallback handling")
+    assert_true(
+        "Transcript is visible, but clipboard access is unavailable." in app_js,
+        "Transcript copy should report unavailable clipboard access",
+    )
     assert_true("function haltPlayback" in app_js, "Reader controls should expose a shared playback halt helper")
     assert_true(
         "haltPlayback({ clearAutoAdvance: false });" in app_js,

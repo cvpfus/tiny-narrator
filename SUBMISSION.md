@@ -54,7 +54,7 @@ The image receipts keep the generated-asset claim inspectable: each article illu
 
 The submission-readiness panel and API give judges a compact checklist for the whole build, so the live demo can move from individual receipts to an overall readiness view.
 
-The Copy Evidence button pulls `/api/evidence-bundle` and writes the formatted JSON bundle to the clipboard for quick judging notes.
+The Copy Evidence button pulls `/api/evidence-bundle` and writes the formatted JSON bundle to the clipboard for quick judging notes. Transcript, evidence, and command copy actions label clipboard-unavailable fallback states in the live narration region.
 
 ## Reliability notes
 

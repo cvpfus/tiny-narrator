@@ -109,7 +109,7 @@ Global reader shortcuts ignore buttons, links, selects, and inputs so the voice,
 
 Reader buttons expose `aria-keyshortcuts`, and the Repeat and Stop shortcuts are mirrored by visible controls so pointer and keyboard users share the same command surface.
 
-The session panel keeps a transcript of recent narration with copy and clear controls, making the spoken path inspectable during demos and useful for the Field Notes write-up.
+The session panel keeps a transcript of recent narration with copy and clear controls, making the spoken path inspectable during demos and useful for the Field Notes write-up. Copy actions report when browser clipboard access is unavailable, so the visible transcript and commands remain inspectable.
 
 Image descriptions are preloaded into a local cache and written into the page's real `img alt` attributes. When the planned MiniCPM-V runtime is unavailable, deterministic alt-text fallbacks keep the screen-reader path usable.
 
