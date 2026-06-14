@@ -46,7 +46,7 @@ When screen reader mode turns on, the reader cursor starts at the focused articl
 
 Reader shortcuts deliberately ignore form controls. A user can adjust the Kokoro voice, speed slider, and auto-advance checkbox without the page treating those keystrokes as navigation commands.
 
-The reader bar exposes the same shortcut contract through `aria-keyshortcuts`. Escape also has a visible Stop button, which keeps the assistive command model available to pointer users and easy for judges to inspect.
+The reader bar exposes the same shortcut contract through `aria-keyshortcuts`. Repeat and Stop also have visible buttons, which keeps the assistive command model available to pointer users and easy for judges to inspect.
 
 Each narration is also added to a visible transcript log. This gives the demo a second accessible surface: users can review what was spoken, copy the session transcript, or clear it before exploring another part of the article.
 

@@ -38,6 +38,7 @@ const controls = {
   heading: document.querySelector("#headingButton"),
   image: document.querySelector("#imageButton"),
   summary: document.querySelector("#summaryButton"),
+  repeat: document.querySelector("#repeatButton"),
   stop: document.querySelector("#stopButton"),
 };
 
@@ -670,12 +671,21 @@ function nextByType(type) {
   liveNarration.textContent = `No ${readerTypeLabel(type).toLowerCase()} items in this article.`;
 }
 
+function repeatCurrentItem() {
+  if (currentIndex >= 0) {
+    narrate(currentIndex);
+  } else {
+    liveNarration.textContent = "No reader item selected.";
+  }
+}
+
 toggle.addEventListener("click", () => setEnabled(!enabled));
 controls.next.addEventListener("click", () => narrate(Math.min(currentIndex + 1, nodes.length - 1)));
 controls.prev.addEventListener("click", () => narrate(Math.max(currentIndex - 1, 0)));
 controls.heading.addEventListener("click", () => nextByType("heading"));
 controls.image.addEventListener("click", () => nextByType("image"));
 controls.summary.addEventListener("click", () => summarizeCurrentSection());
+controls.repeat.addEventListener("click", () => repeatCurrentItem());
 controls.stop.addEventListener("click", () => {
   stopAudio();
   liveNarration.textContent = "Reading stopped.";
@@ -776,6 +786,6 @@ document.addEventListener("keydown", (event) => {
   if (key === "h") controls.heading.click();
   if (key === "i") controls.image.click();
   if (key === "s") controls.summary.click();
-  if (key === "r" && currentIndex >= 0) narrate(currentIndex);
+  if (key === "r") controls.repeat.click();
   if (key === "escape") controls.stop.click();
 });

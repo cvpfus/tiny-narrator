@@ -421,7 +421,7 @@ def accessibility_audit_core() -> dict[str, Any]:
             "id": "keyboard_navigation",
             "label": "Keyboard navigation",
             "status": "pass",
-            "evidence": "Reader controls expose Space, N, P, H, I, S, R, and Esc shortcuts through the manifest and aria-keyshortcuts.",
+            "evidence": "Reader controls expose Space, N, P, H, I, S, R, and Esc shortcuts through the manifest, visible buttons, and aria-keyshortcuts.",
         },
         {
             "id": "reader_cursor",
