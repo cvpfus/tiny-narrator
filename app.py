@@ -415,7 +415,7 @@ def accessibility_audit_core() -> dict[str, Any]:
             "id": "semantic_queue",
             "label": "Semantic reading queue",
             "status": "pass",
-            "evidence": "Readable article nodes declare data-reader-type values for headings, paragraphs, quotes, and images.",
+            "evidence": "Readable article nodes declare data-reader-type values and the session panel renders their ordered queue.",
         },
         {
             "id": "keyboard_navigation",

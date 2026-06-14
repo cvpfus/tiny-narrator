@@ -103,6 +103,8 @@ The frontend builds a reading queue from semantic article nodes. When screen-rea
 
 Each readable node is sent to the reader brain for concise narration, then Kokoro generates speech. If a model is unavailable, the app uses deterministic fallbacks so the demo remains navigable.
 
+The session panel renders the same semantic reader queue used by playback, including the active item marker and total item count.
+
 When screen-reader mode turns on, it selects the focused or most visible article item, assigns stable reader-node ids, and marks the active item with `aria-current`. Clicking a readable article item while the mode is on reads that item directly.
 
 Global reader shortcuts ignore buttons, links, selects, and inputs so the voice, speed, and auto-advance controls remain usable while reader mode is active.

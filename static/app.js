@@ -10,6 +10,8 @@ const imageStatus = document.querySelector("#imageStatus");
 const voiceStatus = document.querySelector("#voiceStatus");
 const latencyStatus = document.querySelector("#latencyStatus");
 const liveNarration = document.querySelector("#liveNarration");
+const readerQueueStatus = document.querySelector("#readerQueueStatus");
+const readerQueueList = document.querySelector("#readerQueueList");
 const audio = document.querySelector("#speechAudio");
 const voiceControl = document.querySelector("#voiceControl");
 const speedControl = document.querySelector("#speedControl");
@@ -138,6 +140,25 @@ function readerTypeLabel(type) {
 
 function readerItemStatus(node) {
   return `${readerTypeLabel(node.type)}, item ${node.index + 1} of ${nodes.length}`;
+}
+
+function readerQueueLabel(node) {
+  return `${node.index + 1}. ${readerTypeLabel(node.type)}`;
+}
+
+function renderReaderQueue() {
+  readerQueueStatus.textContent = `${nodes.length} items`;
+  readerQueueList.innerHTML = nodes
+    .map((node) => `
+      <li${node.index === currentIndex ? ' aria-current="true"' : ""}>
+        <div class="runtime-row">
+          <span>${escapeHtml(readerQueueLabel(node))}</span>
+          <span class="runtime-pill">${node.index === currentIndex ? "current" : "queued"}</span>
+        </div>
+        <p>${escapeHtml(node.text.slice(0, 120))}</p>
+      </li>
+    `)
+    .join("");
 }
 
 function initialReaderIndex() {
@@ -501,6 +522,7 @@ function setActive(index) {
   const node = nodes[currentIndex];
   if (!node) {
     currentStatus.textContent = "No item selected";
+    renderReaderQueue();
     return;
   }
   node.element.classList.add("reader-active");
@@ -509,6 +531,7 @@ function setActive(index) {
   node.element.focus({ preventScroll: true });
   node.element.scrollIntoView({ block: "center", behavior: "smooth" });
   currentStatus.textContent = readerItemStatus(node);
+  renderReaderQueue();
 }
 
 function haltPlayback({ clearAutoAdvance = true } = {}) {
@@ -827,6 +850,7 @@ loadRuntimeSetup();
 loadRuntimeStatus();
 loadImageDescriptions();
 updateSpeedValue();
+renderReaderQueue();
 
 audio.addEventListener("ended", () => {
   playing = false;

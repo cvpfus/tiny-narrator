@@ -45,6 +45,7 @@ def verify_static_assets() -> None:
     for shortcut in ['aria-keyshortcuts="Space"', 'aria-keyshortcuts="N"', 'aria-keyshortcuts="R"', 'aria-keyshortcuts="S"']:
         assert_true(shortcut in index_html, f"Reader controls should expose {shortcut}")
     assert_true("transcriptLog" in index_html, "Article should expose a visible transcript log")
+    assert_true("readerQueueList" in index_html, "Article should expose the semantic reader queue")
     assert_true("repeatButton" in index_html, "Reader controls should expose a visible repeat command")
     assert_true("stopButton" in index_html, "Reader controls should expose a visible stop command")
     assert_true("demoScriptList" in index_html, "Article should expose the judge demo runbook")
@@ -81,6 +82,8 @@ def verify_static_assets() -> None:
     assert_true("controls.repeat.click()" in app_js, "R should route through the visible repeat command")
     assert_true("controls.stop.click()" in app_js, "Escape should route through the visible stop command")
     assert_true("reader-node-" in app_js, "Reader nodes should receive stable ids for control context")
+    assert_true("renderReaderQueue" in app_js, "Frontend should render the semantic reader queue")
+    assert_true("readerQueueStatus.textContent" in app_js, "Reader queue should expose item count")
     assert_true("narrate(node.index)" in app_js, "Reader mode should support click-to-read article items")
 
     submission = (ROOT / "SUBMISSION.md").read_text(encoding="utf-8")
@@ -235,6 +238,7 @@ def verify_routes() -> None:
     assert_true("speedValue" in home.text, "Home route should include speed value output")
     assert_true("autoAdvanceControl" in home.text, "Home route should include auto-advance control")
     assert_true("transcriptLog" in home.text, "Home route should include transcript log")
+    assert_true("readerQueueList" in home.text, "Home route should include reader queue list")
     assert_true("demoScriptStatus" in home.text, "Home route should include demo script status")
     assert_true("demoScriptList" in home.text, "Home route should include demo script list")
     assert_true("demoApiCheckList" in home.text, "Home route should include demo API check list")
