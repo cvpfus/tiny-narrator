@@ -82,7 +82,7 @@ The verifier checks syntax, static assets, Space metadata consistency, determini
 
 `/api/image-descriptions` includes image-generation provenance for every article illustration: the planned FLUX.2 klein model, prompt, seed, bundled asset URL, and fallback-ready status.
 
-`/api/submission-readiness` aggregates the judging receipts into one pass/fail payload covering model budget, award evidence, custom frontend assets, runtime setup, accessibility, image receipts, demo API checks, and command base URL checks.
+`/api/submission-readiness` aggregates the judging receipts into one pass/fail payload covering model budget, award evidence, custom frontend assets, runtime setup, runtime status, accessibility, image receipts, demo API checks, and command base URL checks.
 
 The readiness rollup only passes the demo API check when POST entries include executable sample bodies.
 

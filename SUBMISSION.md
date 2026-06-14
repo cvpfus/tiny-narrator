@@ -43,7 +43,7 @@ The prototype is designed for a live hackathon demo: every model-facing path has
 - `/api/accessibility-audit`: semantic queue, keyboard navigation, reader cursor state, shortcut safety, live narration, alt text, transcript, user control, and fallback evidence.
 - `/api/demo-script`: repeatable judge runbook and API checks.
 - `/api/image-descriptions`: generated article image descriptions plus prompt, seed, model, asset URL, and fallback status receipts.
-- `/api/submission-readiness`: one pass/fail rollup for model budget, award evidence, custom frontend, runtime setup, accessibility, image receipts, and demo API checks.
+- `/api/submission-readiness`: one pass/fail rollup for model budget, award evidence, custom frontend, runtime setup, runtime status, accessibility, image receipts, and demo API checks.
 - `/api/evidence-bundle`: copyable JSON bundle containing the core judge evidence receipts, runtime status, and readiness rollup.
 
 The checks in `/api/demo-script` include copyable curl and PowerShell-friendly `curl.exe` commands generated from `PUBLIC_BASE_URL`, and the POST checks include sample JSON bodies for `/api/reader-brain` and `/api/speak`.

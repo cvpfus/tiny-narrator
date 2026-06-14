@@ -466,6 +466,7 @@ def verify_routes() -> None:
             "award_targets",
             "custom_frontend",
             "runtime_setup",
+            "runtime_status",
             "reader_accessibility",
             "image_receipts",
             "demo_api_checks",
@@ -473,6 +474,8 @@ def verify_routes() -> None:
         },
         "Submission readiness should aggregate model, award, frontend, runtime, accessibility, image, and demo evidence",
     )
+    runtime_status_check = next(item for item in readiness_payload["checks"] if item["id"] == "runtime_status")
+    assert_true(runtime_status_check["status"] == "pass", "Submission readiness should pass runtime status checks")
     demo_api_check = next(item for item in readiness_payload["checks"] if item["id"] == "demo_api_checks")
     assert_true(demo_api_check["status"] == "pass", "Submission readiness should pass executable demo API checks")
     command_base_check = next(item for item in readiness_payload["checks"] if item["id"] == "command_base_url")

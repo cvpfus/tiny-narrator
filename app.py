@@ -304,6 +304,7 @@ def demo_script_core() -> dict[str, Any]:
 def submission_readiness_core() -> dict[str, Any]:
     model_budget = model_budget_core()
     runtime_setup = runtime_setup_core()
+    runtime_status = _runtime_status_core()
     accessibility = accessibility_audit_core()
     demo_script = demo_script_core()
     image_descriptions = describe_article_images_core()
@@ -316,6 +317,13 @@ def submission_readiness_core() -> dict[str, Any]:
         PUBLIC_BASE_URL in item["curl"] and PUBLIC_BASE_URL in item["powershell"]
         for item in demo_script["api_checks"]
     )
+    runtime_statuses = {
+        runtime_status["reader_brain"]["status"],
+        runtime_status["vision"]["status"],
+        runtime_status["speech"]["status"],
+        runtime_status["image_generation"]["status"],
+    }
+    runtime_status_ready = runtime_statuses <= {"online", "fallback-ready", "placeholder-ready"}
     checks = [
         {
             "id": "tiny_titan_budget",
@@ -340,6 +348,12 @@ def submission_readiness_core() -> dict[str, Any]:
             "label": "Runtime setup",
             "status": "pass" if runtime_roles == expected_roles else "fail",
             "evidence": "Runtime setup covers reader brain, speech, vision, and image generation paths.",
+        },
+        {
+            "id": "runtime_status",
+            "label": "Runtime status",
+            "status": "pass" if runtime_status_ready else "fail",
+            "evidence": "Runtime status labels every model path as online, fallback-ready, or placeholder-ready.",
         },
         {
             "id": "reader_accessibility",
