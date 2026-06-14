@@ -18,6 +18,8 @@ const transcriptLog = document.querySelector("#transcriptLog");
 const copyTranscriptButton = document.querySelector("#copyTranscriptButton");
 const clearTranscriptButton = document.querySelector("#clearTranscriptButton");
 const awardEvidenceList = document.querySelector("#awardEvidenceList");
+const submissionReadinessStatus = document.querySelector("#submissionReadinessStatus");
+const submissionReadinessList = document.querySelector("#submissionReadinessList");
 const budgetStatus = document.querySelector("#budgetStatus");
 const modelBudgetList = document.querySelector("#modelBudgetList");
 const runtimeSetupStatus = document.querySelector("#runtimeSetupStatus");
@@ -219,6 +221,37 @@ async function loadAwardEvidence() {
           <span class="award-status">offline</span>
         </div>
         <p class="award-evidence">Award evidence is unavailable.</p>
+      </li>
+    `;
+  }
+}
+
+async function loadSubmissionReadiness() {
+  try {
+    const payload = await postJson("/api/submission-readiness");
+    submissionReadinessStatus.textContent = payload.all_passed
+      ? `${payload.passed_checks}/${payload.total_checks} pass`
+      : "Review needed";
+    submissionReadinessList.innerHTML = payload.checks
+      .map((item) => `
+        <li>
+          <div class="award-title">
+            <span>${escapeHtml(item.label)}</span>
+            <span class="award-status">${escapeHtml(item.status)}</span>
+          </div>
+          <p class="award-evidence">${escapeHtml(item.evidence)}</p>
+        </li>
+      `)
+      .join("");
+  } catch {
+    submissionReadinessStatus.textContent = "Unavailable";
+    submissionReadinessList.innerHTML = `
+      <li>
+        <div class="award-title">
+          <span>Submission readiness</span>
+          <span class="award-status">offline</span>
+        </div>
+        <p class="award-evidence">Submission readiness evidence is unavailable.</p>
       </li>
     `;
   }
@@ -651,6 +684,7 @@ controls.play.addEventListener("click", () => {
 
 loadManifest();
 loadAwardEvidence();
+loadSubmissionReadiness();
 loadModelBudget();
 loadRuntimeSetup();
 loadRuntimeStatus();

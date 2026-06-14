@@ -290,6 +290,14 @@ dd {
   margin-top: 22px;
 }
 
+.submission-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 22px;
+}
+
 .budget-header,
 .image-receipt-header {
   display: flex;
@@ -309,7 +317,8 @@ dd {
 
 .budget-header span,
 .runtime-header span,
-.image-receipt-header span {
+.image-receipt-header span,
+.submission-header span {
   color: var(--accent-strong);
   font-size: 0.76rem;
   font-weight: 850;

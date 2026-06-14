@@ -39,6 +39,7 @@ def verify_static_assets() -> None:
     assert_true('aria-live="polite"' in index_html, "Article should expose an aria-live narration region")
     assert_true("transcriptLog" in index_html, "Article should expose a visible transcript log")
     assert_true("imageReceiptList" in index_html, "Article should expose generated image receipts")
+    assert_true("submissionReadinessList" in index_html, "Article should expose submission readiness checks")
     assert_true("function haltPlayback" in app_js, "Reader controls should expose a shared playback halt helper")
     assert_true(
         "haltPlayback({ clearAutoAdvance: false });" in app_js,
@@ -52,7 +53,13 @@ def verify_static_assets() -> None:
     submission = (ROOT / "SUBMISSION.md").read_text(encoding="utf-8")
     for target in ["Tiny Titan", "Llama Champion", "Off-Brand", "Field Notes"]:
         assert_true(target in submission, f"Submission packet should mention {target}")
-    for endpoint in ["/api/model-budget", "/api/runtime-setup", "/api/accessibility-audit", "/api/demo-script"]:
+    for endpoint in [
+        "/api/model-budget",
+        "/api/runtime-setup",
+        "/api/accessibility-audit",
+        "/api/demo-script",
+        "/api/submission-readiness",
+    ]:
         assert_true(endpoint in submission, f"Submission packet should mention {endpoint}")
     assert_true(
         "nvidia/NVIDIA-Nemotron-3-Nano-4B-GGUF" in submission,
@@ -194,6 +201,8 @@ def verify_routes() -> None:
     assert_true("autoAdvanceControl" in home.text, "Home route should include auto-advance control")
     assert_true("transcriptLog" in home.text, "Home route should include transcript log")
     assert_true("awardEvidenceList" in home.text, "Home route should include award evidence list")
+    assert_true("submissionReadinessStatus" in home.text, "Home route should include submission readiness status")
+    assert_true("submissionReadinessList" in home.text, "Home route should include submission readiness list")
     assert_true("budgetStatus" in home.text, "Home route should include model budget status")
     assert_true("modelBudgetList" in home.text, "Home route should include model budget list")
     assert_true("runtimeSetupStatus" in home.text, "Home route should include runtime setup status")
@@ -309,6 +318,10 @@ def verify_routes() -> None:
         any(item["path"] == "/api/accessibility-audit" for item in demo_payload["api_checks"]),
         "Demo script should include the accessibility audit check",
     )
+    assert_true(
+        any(item["path"] == "/api/submission-readiness" for item in demo_payload["api_checks"]),
+        "Demo script should include the submission readiness check",
+    )
     reader_check = next(item for item in demo_payload["api_checks"] if item["path"] == "/api/reader-brain")
     speech_check = next(item for item in demo_payload["api_checks"] if item["path"] == "/api/speak")
     assert_true(reader_check["sample_body"]["mode"] == "narrate", "Reader-brain demo check should include a sample body")
@@ -349,6 +362,25 @@ def verify_routes() -> None:
             "inspectable_transcript",
         },
         "Accessibility audit should cover reader semantics, keyboard use, cursor state, shortcut safety, live narration, alt text, and transcript",
+    )
+
+    readiness = client.get("/api/submission-readiness")
+    assert_true(readiness.status_code == 200, "Submission readiness route should return 200")
+    readiness_payload = readiness.json()
+    assert_true(readiness_payload["ok"], "Submission readiness payload should be ok")
+    assert_true(readiness_payload["all_passed"], "Submission readiness checks should pass")
+    assert_true(
+        {item["id"] for item in readiness_payload["checks"]}
+        >= {
+            "tiny_titan_budget",
+            "award_targets",
+            "custom_frontend",
+            "runtime_setup",
+            "reader_accessibility",
+            "image_receipts",
+            "demo_api_checks",
+        },
+        "Submission readiness should aggregate model, award, frontend, runtime, accessibility, image, and demo evidence",
     )
 
     runtime = client.get("/api/runtime-status")

@@ -252,6 +252,7 @@ def demo_script_core() -> dict[str, Any]:
             {"method": "GET", "path": "/api/runtime-status", "expect": "online or fallback-ready runtime labels"},
             {"method": "GET", "path": "/api/accessibility-audit", "expect": "all reader-mode checks pass"},
             {"method": "GET", "path": "/api/image-descriptions", "expect": "three article image descriptions"},
+            {"method": "GET", "path": "/api/submission-readiness", "expect": "all submission readiness checks pass"},
             {
                 "method": "POST",
                 "path": "/api/reader-brain",
@@ -274,6 +275,82 @@ def demo_script_core() -> dict[str, Any]:
                 },
             },
         ],
+    }
+
+
+def submission_readiness_core() -> dict[str, Any]:
+    model_budget = model_budget_core()
+    runtime_setup = runtime_setup_core()
+    accessibility = accessibility_audit_core()
+    demo_script = demo_script_core()
+    image_descriptions = describe_article_images_core()
+    runtime_roles = {step["role"] for step in runtime_setup["steps"]}
+    expected_roles = set(MODEL_MANIFEST)
+    api_paths = {item["path"] for item in demo_script["api_checks"]}
+    checks = [
+        {
+            "id": "tiny_titan_budget",
+            "label": "Tiny Titan model budget",
+            "status": "pass" if model_budget["all_models_within_limit"] else "fail",
+            "evidence": f"{len(model_budget['models'])} model roles are at or below {TINY_TITAN_LIMIT_B}B parameters.",
+        },
+        {
+            "id": "award_targets",
+            "label": "Targeted award evidence",
+            "status": "pass" if len(AWARD_EVIDENCE) == 4 else "fail",
+            "evidence": "Tiny Titan, Llama Champion, Off-Brand, and Field Notes evidence is exposed.",
+        },
+        {
+            "id": "custom_frontend",
+            "label": "Custom frontend",
+            "status": "pass" if all((STATIC_DIR / name).exists() for name in ["index.html", "app.css", "app.js"]) else "fail",
+            "evidence": "The app serves custom HTML, CSS, and JavaScript through Gradio Server.",
+        },
+        {
+            "id": "runtime_setup",
+            "label": "Runtime setup",
+            "status": "pass" if runtime_roles == expected_roles else "fail",
+            "evidence": "Runtime setup covers reader brain, speech, vision, and image generation paths.",
+        },
+        {
+            "id": "reader_accessibility",
+            "label": "Reader accessibility",
+            "status": "pass" if accessibility["all_passed"] else "fail",
+            "evidence": f"{accessibility['passed_checks']} of {accessibility['total_checks']} accessibility checks pass.",
+        },
+        {
+            "id": "image_receipts",
+            "label": "Image receipts",
+            "status": "pass"
+            if all(
+                item.get("generation_model") == MODEL_MANIFEST["image_generation"]["id"] and isinstance(item.get("seed"), int)
+                for item in image_descriptions["descriptions"]
+            )
+            else "fail",
+            "evidence": "Every article illustration exposes prompt, seed, model, asset URL, and fallback status.",
+        },
+        {
+            "id": "demo_api_checks",
+            "label": "Demo API checks",
+            "status": "pass"
+            if {
+                "/api/model-budget",
+                "/api/runtime-setup",
+                "/api/accessibility-audit",
+                "/api/image-descriptions",
+                "/api/reader-brain",
+                "/api/speak",
+            }.issubset(api_paths)
+            else "fail",
+            "evidence": "The judge runbook includes GET evidence checks and executable POST sample bodies.",
+        },
+    ]
+    return {
+        "ok": True,
+        "all_passed": all(check["status"] == "pass" for check in checks),
+        "passed_checks": sum(1 for check in checks if check["status"] == "pass"),
+        "total_checks": len(checks),
+        "checks": checks,
     }
 
 
@@ -710,6 +787,11 @@ async def accessibility_audit() -> JSONResponse:
     return _json(accessibility_audit_core())
 
 
+@app.get("/api/submission-readiness")
+async def submission_readiness() -> JSONResponse:
+    return _json(submission_readiness_core())
+
+
 @app.get("/api/runtime-status")
 async def runtime_status() -> JSONResponse:
     return _json(_runtime_status_core())
@@ -773,6 +855,11 @@ def demo_script_api() -> str:
 @app.api(name="accessibility_audit")
 def accessibility_audit_api() -> str:
     return json.dumps(accessibility_audit_core())
+
+
+@app.api(name="submission_readiness")
+def submission_readiness_api() -> str:
+    return json.dumps(submission_readiness_core())
 
 
 @app.api(name="speak")

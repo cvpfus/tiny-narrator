@@ -43,12 +43,15 @@ The prototype is designed for a live hackathon demo: every model-facing path has
 - `/api/accessibility-audit`: semantic queue, keyboard navigation, reader cursor state, shortcut safety, live narration, alt text, transcript, user control, and fallback evidence.
 - `/api/demo-script`: repeatable judge runbook and API checks.
 - `/api/image-descriptions`: generated article image descriptions plus prompt, seed, model, asset URL, and fallback status receipts.
+- `/api/submission-readiness`: one pass/fail rollup for model budget, award evidence, custom frontend, runtime setup, accessibility, image receipts, and demo API checks.
 
 The POST checks in `/api/demo-script` include sample JSON bodies for `/api/reader-brain` and `/api/speak`.
 
 The accessibility audit also documents two reader-mode details that matter during judging: the active item is exposed as a reader cursor with focus, visible outline, stable id, and `aria-current`; global shortcuts ignore form controls so voice, speed, and auto-advance settings remain usable while reader mode is active.
 
 The image receipts keep the generated-asset claim inspectable: each article illustration names the planned `black-forest-labs/FLUX.2-klein-4B` path, prompt, seed, and bundled fallback asset.
+
+The submission-readiness panel and API give judges a compact checklist for the whole build, so the live demo can move from individual receipts to an overall readiness view.
 
 ## Reliability notes
 

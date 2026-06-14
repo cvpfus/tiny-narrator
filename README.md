@@ -52,7 +52,7 @@ Start the app:
 python app.py
 ```
 
-Open the local URL printed by Gradio. The custom frontend calls `/api/reader-brain`, `/api/image-descriptions`, `/api/describe-image`, `/api/speak`, `/api/generate-image`, `/api/model-budget`, `/api/runtime-setup`, `/api/demo-script`, and `/api/accessibility-audit`.
+Open the local URL printed by Gradio. The custom frontend calls `/api/reader-brain`, `/api/image-descriptions`, `/api/describe-image`, `/api/speak`, `/api/generate-image`, `/api/model-budget`, `/api/runtime-setup`, `/api/demo-script`, `/api/accessibility-audit`, and `/api/submission-readiness`.
 
 Useful environment variables:
 
@@ -80,6 +80,8 @@ The verifier checks syntax, static assets, Space metadata consistency, determini
 `/api/accessibility-audit` exposes structured evidence for semantic reading order, keyboard navigation, reader cursor state, shortcut safety, live narration, image alt text, transcript review, user-controlled playback, and fallback resilience.
 
 `/api/image-descriptions` includes image-generation provenance for every article illustration: the planned FLUX.2 klein model, prompt, seed, bundled asset URL, and fallback-ready status.
+
+`/api/submission-readiness` aggregates the judging receipts into one pass/fail payload covering model budget, award evidence, custom frontend assets, runtime setup, accessibility, image receipts, and demo API checks.
 
 ## Screen Reader Mode
 
@@ -119,6 +121,8 @@ Navigation commands interrupt current speech before starting the next request, m
 Reader-brain, image-description, speech, and image-generation responses include `elapsed_ms`. The session panel and transcript show recent latency so the Field Notes can discuss responsiveness with concrete numbers.
 
 The session panel also renders a manifest-backed demo checklist for Tiny Titan, Llama Champion, Off-Brand, and Field Notes evidence. A model-budget panel reads `/api/model-budget` so judges can see each role's parameter count in the live app.
+
+A submission-readiness panel reads `/api/submission-readiness`, giving judges one compact rollup of the claims the live app can prove.
 
 A runtime-plan panel reads `/api/runtime-setup` and summarizes each model path's runtime plus fallback, keeping the live demo honest about what is online and what is deterministic.
 
