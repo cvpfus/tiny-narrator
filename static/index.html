@@ -16,6 +16,7 @@
         <a href="#why">Why</a>
         <a href="#models">Models</a>
         <a href="#notes">Field Notes</a>
+        <a href="/evidence">Evidence</a>
       </nav>
       <button id="readerToggle" class="reader-toggle" type="button" aria-pressed="false">
         <span class="toggle-dot" aria-hidden="true"></span>
@@ -102,14 +103,6 @@
             <dd id="runtimeStatus">Waiting</dd>
           </div>
           <div>
-            <dt>Model Stack</dt>
-            <dd id="modelStatus">Loading</dd>
-          </div>
-          <div>
-            <dt>Readiness</dt>
-            <dd id="readinessStatus">Checking</dd>
-          </div>
-          <div>
             <dt>Image Alt</dt>
             <dd id="imageStatus">Waiting</dd>
           </div>
@@ -130,44 +123,12 @@
           <span id="readerQueueStatus">Loading</span>
         </div>
         <ol id="readerQueueList" class="runtime-list" aria-label="Semantic reader queue"></ol>
-        <ul id="runtimeStatusList" class="runtime-list" aria-label="Live model runtime status"></ul>
         <div class="history-header">
           <h3>Transcript</h3>
           <button id="copyTranscriptButton" type="button">Copy</button>
           <button id="clearTranscriptButton" type="button">Clear</button>
         </div>
         <ol id="transcriptLog" class="transcript-log" aria-label="Narration transcript"></ol>
-        <div class="demo-script-header">
-          <h3>Judge Runbook</h3>
-          <span id="demoScriptStatus">Loading</span>
-        </div>
-        <ol id="demoScriptList" class="demo-script-list" aria-label="Judge demo runbook"></ol>
-        <ul id="demoApiCheckList" class="demo-api-check-list" aria-label="Judge API evidence checks"></ul>
-        <div class="award-header">
-          <h3>Award Evidence</h3>
-        </div>
-        <ul id="awardEvidenceList" class="award-list" aria-label="Hackathon bonus evidence"></ul>
-        <div class="submission-header">
-          <h3>Submission Readiness</h3>
-          <span id="submissionReadinessStatus">Checking</span>
-          <button id="copyEvidenceButton" type="button">Copy Evidence</button>
-        </div>
-        <ul id="submissionReadinessList" class="award-list" aria-label="Submission readiness checks"></ul>
-        <div class="budget-header">
-          <h3>Model Budget</h3>
-          <span id="budgetStatus">Checking</span>
-        </div>
-        <ul id="modelBudgetList" class="budget-list" aria-label="Tiny Titan model budget"></ul>
-        <div class="runtime-header">
-          <h3>Runtime Plan</h3>
-          <span id="runtimeSetupStatus">Loading</span>
-        </div>
-        <ul id="runtimeSetupList" class="runtime-list" aria-label="Model runtime setup plan"></ul>
-        <div class="image-receipt-header">
-          <h3>Image Receipts</h3>
-          <span id="imageReceiptStatus">Loading</span>
-        </div>
-        <ul id="imageReceiptList" class="image-receipt-list" aria-label="Generated image provenance"></ul>
       </aside>
     </main>
 

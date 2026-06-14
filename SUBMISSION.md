@@ -31,15 +31,16 @@ The prototype is designed for a live hackathon demo: every model-facing path has
 1. Open the article and show that the app is a custom article interface, not a stock chatbot page.
 2. Turn on screen-reader mode and press `Space` or `Next` to narrate the first semantic node.
 3. Use `Heading`, `Image`, and `Summary` to navigate by article meaning instead of by raw page order.
-4. Show the session panel: transcript, runtime readiness, latency, judge runbook, award evidence, model budget, and runtime plan.
-5. Mention that `/api/demo-script` exposes the same judge runbook and API evidence checks as structured data.
+4. Show the reader-first session panel: current item, live narration, reader queue, transcript, and latency.
+5. Open `/evidence` to inspect runtime readiness, judge runbook, award evidence, model budget, image receipts, and runtime plan.
+6. Mention that `/api/demo-script` exposes the same judge runbook and API evidence checks as structured data.
 
 ## Evidence endpoints
 
 - `/api/health`: app identity, custom frontend marker, llama.cpp base URL, and model manifest.
 - `/api/model-budget`: Tiny Titan parameter proof with numeric `params_billion` and per-model pass values.
 - `/api/runtime-setup`: app command, copyable model runtime commands rendered in the UI, environment values, and fallback paths.
-- `/api/runtime-status`: online or fallback-ready status for each model path, rendered in the session panel.
+- `/api/runtime-status`: online or fallback-ready status for each model path, rendered on `/evidence`.
 - `/api/accessibility-audit`: semantic queue, keyboard navigation, reader cursor state, shortcut safety, live narration, alt text, transcript, user control, and fallback evidence.
 - `/api/demo-script`: repeatable judge runbook and API checks.
 - `/api/image-descriptions`: generated article image descriptions plus prompt, seed, model, asset URL, and fallback status receipts.
@@ -54,7 +55,7 @@ The image receipts keep the generated-asset claim inspectable: each article illu
 
 The submission-readiness panel and API give judges a compact checklist for the whole build, so the live demo can move from individual receipts to an overall readiness view.
 
-The Copy Evidence button pulls `/api/evidence-bundle` and writes the formatted JSON bundle to the clipboard for quick judging notes. Transcript, evidence, and command copy actions label clipboard-unavailable fallback states in the live narration region.
+The `/evidence` page's Copy Evidence button pulls `/api/evidence-bundle` and writes the formatted JSON bundle to the clipboard for quick judging notes. Transcript, evidence, and command copy actions label clipboard-unavailable fallback states in visible live regions.
 
 ## Reliability notes
 

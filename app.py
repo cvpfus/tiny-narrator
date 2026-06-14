@@ -816,6 +816,11 @@ async def home() -> str:
     return (STATIC_DIR / "index.html").read_text(encoding="utf-8")
 
 
+@app.get("/evidence", response_class=HTMLResponse)
+async def evidence_page() -> str:
+    return (STATIC_DIR / "evidence.html").read_text(encoding="utf-8")
+
+
 @app.get("/api/health")
 async def health() -> JSONResponse:
     return _json(

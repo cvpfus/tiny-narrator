@@ -23,8 +23,10 @@ def verify_static_assets() -> None:
         ROOT / "LICENSE",
         ROOT / "SUBMISSION.md",
         ROOT / "static" / "index.html",
+        ROOT / "static" / "evidence.html",
         ROOT / "static" / "app.css",
         ROOT / "static" / "app.js",
+        ROOT / "static" / "evidence.js",
         ROOT / "static" / "generated" / "desk-reader.svg",
         ROOT / "static" / "generated" / "model-map.svg",
         ROOT / "static" / "generated" / "field-notes.svg",
@@ -33,7 +35,9 @@ def verify_static_assets() -> None:
         assert_true(path.exists(), f"Missing required asset: {path}")
 
     app_js = (ROOT / "static" / "app.js").read_text(encoding="utf-8")
+    evidence_js = (ROOT / "static" / "evidence.js").read_text(encoding="utf-8")
     index_html = (ROOT / "static" / "index.html").read_text(encoding="utf-8")
+    evidence_html = (ROOT / "static" / "evidence.html").read_text(encoding="utf-8")
     assert_true('data-reader-type="heading"' in index_html, "Article should mark heading reader nodes")
     assert_true('data-reader-type="image"' in index_html, "Article should mark image reader nodes")
     assert_true('alt=""' not in index_html, "Article images should not start with empty alt text")
@@ -48,24 +52,33 @@ def verify_static_assets() -> None:
     assert_true("readerQueueList" in index_html, "Article should expose the semantic reader queue")
     assert_true("repeatButton" in index_html, "Reader controls should expose a visible repeat command")
     assert_true("stopButton" in index_html, "Reader controls should expose a visible stop command")
-    assert_true("demoScriptList" in index_html, "Article should expose the judge demo runbook")
-    assert_true("demoApiCheckList" in index_html, "Article should expose judge API evidence checks")
-    assert_true("imageReceiptList" in index_html, "Article should expose generated image receipts")
-    assert_true("runtimeStatusList" in index_html, "Article should expose live runtime status details")
-    assert_true("submissionReadinessList" in index_html, "Article should expose submission readiness checks")
-    assert_true("copyEvidenceButton" in index_html, "Article should expose a copyable evidence bundle button")
-    assert_true("loadDemoScript" in app_js, "Frontend should render the structured demo script")
-    assert_true("runtimeStatusList.innerHTML" in app_js, "Frontend should render live runtime status details")
-    assert_true("runtime-command" in app_js, "Frontend should render runtime setup commands")
-    assert_true("runtime-command-copy" in app_js, "Frontend should expose copy buttons for runtime setup commands")
-    assert_true("runtimeSetupList.addEventListener" in app_js, "Runtime setup command copy actions should be delegated")
-    assert_true("payload.api_checks" in app_js, "Frontend should render structured demo API checks")
-    assert_true("demo-api-command" in app_js, "Frontend should render copyable demo commands")
-    assert_true("demo-command-copy" in app_js, "Frontend should expose copy buttons for demo commands")
-    assert_true("item.powershell" in app_js, "Frontend should render PowerShell-friendly demo commands")
-    assert_true("Tiny Titan pass" in app_js, "Frontend should render per-model Tiny Titan pass labels")
-    assert_true("/api/evidence-bundle" in app_js, "Frontend should fetch the evidence bundle for copying")
+    for moved_id in [
+        "demoScriptList",
+        "demoApiCheckList",
+        "imageReceiptList",
+        "runtimeStatusList",
+        "submissionReadinessList",
+        "copyEvidenceButton",
+        "modelBudgetList",
+        "runtimeSetupList",
+    ]:
+        assert_true(moved_id not in index_html, f"Article sidebar should not include moved evidence panel: {moved_id}")
+        assert_true(moved_id in evidence_html, f"Evidence page should include moved evidence panel: {moved_id}")
+    assert_true("loadDemoScript" not in app_js, "Article frontend should not render the structured demo script")
+    assert_true("loadDemoScript" in evidence_js, "Evidence frontend should render the structured demo script")
+    assert_true("runtimeStatusList.innerHTML" in evidence_js, "Evidence frontend should render live runtime status details")
+    assert_true("runtime-command" in evidence_js, "Evidence frontend should render runtime setup commands")
+    assert_true("runtime-command-copy" in evidence_js, "Evidence frontend should expose copy buttons for runtime setup commands")
+    assert_true("runtimeSetupList.addEventListener" in evidence_js, "Runtime setup command copy actions should be delegated")
+    assert_true("payload.api_checks" in evidence_js, "Evidence frontend should render structured demo API checks")
+    assert_true("demo-api-command" in evidence_js, "Evidence frontend should render copyable demo commands")
+    assert_true("demo-command-copy" in evidence_js, "Evidence frontend should expose copy buttons for demo commands")
+    assert_true("item.powershell" in evidence_js, "Evidence frontend should render PowerShell-friendly demo commands")
+    assert_true("Tiny Titan pass" in evidence_js, "Evidence frontend should render per-model Tiny Titan pass labels")
+    assert_true("/api/evidence-bundle" in evidence_js, "Evidence frontend should fetch the evidence bundle for copying")
+    assert_true("/evidence" in index_html, "Article page should link to the dedicated evidence page")
     assert_true("copyTextToClipboard" in app_js, "Frontend copy actions should share clipboard fallback handling")
+    assert_true("copyTextToClipboard" in evidence_js, "Evidence copy actions should share clipboard fallback handling")
     assert_true(
         "Transcript is visible, but clipboard access is unavailable." in app_js,
         "Transcript copy should report unavailable clipboard access",
@@ -236,8 +249,6 @@ def verify_routes() -> None:
     assert_true("readerToggle" in home.text, "Home route should include reader toggle")
     assert_true("summaryButton" in home.text, "Home route should include summary control")
     assert_true("imageStatus" in home.text, "Home route should include image status")
-    assert_true("readinessStatus" in home.text, "Home route should include readiness status")
-    assert_true("runtimeStatusList" in home.text, "Home route should include runtime status list")
     assert_true("voiceStatus" in home.text, "Home route should include voice status")
     assert_true("latencyStatus" in home.text, "Home route should include latency status")
     assert_true("voiceControl" in home.text, "Home route should include voice control")
@@ -245,19 +256,26 @@ def verify_routes() -> None:
     assert_true("autoAdvanceControl" in home.text, "Home route should include auto-advance control")
     assert_true("transcriptLog" in home.text, "Home route should include transcript log")
     assert_true("readerQueueList" in home.text, "Home route should include reader queue list")
-    assert_true("demoScriptStatus" in home.text, "Home route should include demo script status")
-    assert_true("demoScriptList" in home.text, "Home route should include demo script list")
-    assert_true("demoApiCheckList" in home.text, "Home route should include demo API check list")
-    assert_true("awardEvidenceList" in home.text, "Home route should include award evidence list")
-    assert_true("submissionReadinessStatus" in home.text, "Home route should include submission readiness status")
-    assert_true("submissionReadinessList" in home.text, "Home route should include submission readiness list")
-    assert_true("copyEvidenceButton" in home.text, "Home route should include copy evidence button")
-    assert_true("budgetStatus" in home.text, "Home route should include model budget status")
-    assert_true("modelBudgetList" in home.text, "Home route should include model budget list")
-    assert_true("runtimeSetupStatus" in home.text, "Home route should include runtime setup status")
-    assert_true("runtimeSetupList" in home.text, "Home route should include runtime setup list")
-    assert_true("imageReceiptStatus" in home.text, "Home route should include image receipt status")
-    assert_true("imageReceiptList" in home.text, "Home route should include image receipt list")
+    assert_true("/evidence" in home.text, "Home route should link to the evidence page")
+    assert_true("copyEvidenceButton" not in home.text, "Home route should keep judge evidence off the reader sidebar")
+
+    evidence_page = client.get("/evidence")
+    assert_true(evidence_page.status_code == 200, "Evidence route should return 200")
+    assert_true("Judging receipts for Tiny Narrator" in evidence_page.text, "Evidence route should include evidence title")
+    assert_true("demoScriptStatus" in evidence_page.text, "Evidence route should include demo script status")
+    assert_true("demoScriptList" in evidence_page.text, "Evidence route should include demo script list")
+    assert_true("demoApiCheckList" in evidence_page.text, "Evidence route should include demo API check list")
+    assert_true("awardEvidenceList" in evidence_page.text, "Evidence route should include award evidence list")
+    assert_true("submissionReadinessStatus" in evidence_page.text, "Evidence route should include submission readiness status")
+    assert_true("submissionReadinessList" in evidence_page.text, "Evidence route should include submission readiness list")
+    assert_true("copyEvidenceButton" in evidence_page.text, "Evidence route should include copy evidence button")
+    assert_true("budgetStatus" in evidence_page.text, "Evidence route should include model budget status")
+    assert_true("modelBudgetList" in evidence_page.text, "Evidence route should include model budget list")
+    assert_true("runtimeStatusList" in evidence_page.text, "Evidence route should include runtime status list")
+    assert_true("runtimeSetupStatus" in evidence_page.text, "Evidence route should include runtime setup status")
+    assert_true("runtimeSetupList" in evidence_page.text, "Evidence route should include runtime setup list")
+    assert_true("imageReceiptStatus" in evidence_page.text, "Evidence route should include image receipt status")
+    assert_true("imageReceiptList" in evidence_page.text, "Evidence route should include image receipt list")
 
     health = client.get("/api/health")
     assert_true(health.status_code == 200, "Health route should return 200")

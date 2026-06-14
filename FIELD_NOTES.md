@@ -24,17 +24,17 @@ Tiny Narrator is a small-model accessibility article reader. It is not a generic
 | Speech | `hexgrad/Kokoro-82M` | 82M | Fast screen-reader voice with a tiny footprint. |
 | Image generation | `black-forest-labs/FLUX.2-klein-4B` | 4B | Generates the article illustrations while staying Tiny Titan-safe. |
 
-The app exposes the same budget through `/api/model-budget`, including numeric `params_billion` values, per-model `within_limit` values, and a boolean `all_models_within_limit` check. The session panel renders each model's parameter count and Tiny Titan pass state so the claim is visible during the demo.
+The app exposes the same budget through `/api/model-budget`, including numeric `params_billion` values, per-model `within_limit` values, and a boolean `all_models_within_limit` check. The `/evidence` page renders each model's parameter count and Tiny Titan pass state so the claim is visible during the demo.
 
-Runtime setup is also data-backed. `/api/runtime-setup` lists the app command, llama.cpp launch command, model-specific runtime paths, environment values, and fallbacks. The session panel renders the runtime labels, setup commands, copy controls, and fallbacks so the demo can distinguish real model wiring from deterministic safety nets.
+Runtime setup is also data-backed. `/api/runtime-setup` lists the app command, llama.cpp launch command, model-specific runtime paths, environment values, and fallbacks. The `/evidence` page renders the runtime labels, setup commands, copy controls, and fallbacks so the demo can distinguish real model wiring from deterministic safety nets.
 
-The judge runbook lives at `/api/demo-script` and is rendered in the session panel with its API evidence checks. It keeps the live presentation repeatable by pairing visible actions with API checks for health, model budget, runtime setup, runtime status, image descriptions, reader narration, and speech. Each API check includes copyable curl and PowerShell-friendly `curl.exe` commands for quick reproduction. Deployed demos can set `PUBLIC_BASE_URL` so those commands point at the public Space instead of localhost.
+The judge runbook lives at `/api/demo-script` and is rendered on `/evidence` with its API evidence checks. It keeps the live presentation repeatable by pairing visible actions with API checks for health, model budget, runtime setup, runtime status, image descriptions, reader narration, and speech. Each API check includes copyable curl and PowerShell-friendly `curl.exe` commands for quick reproduction. Deployed demos can set `PUBLIC_BASE_URL` so those commands point at the public Space instead of localhost.
 
 Submission readiness lives at `/api/submission-readiness`. It aggregates the demo-critical checks into one payload: model budget, award evidence, custom frontend assets, runtime setup, runtime status, accessibility audit, image receipts, executable demo API checks, and command base URL checks. POST checks must include sample bodies before readiness passes.
 
-The copyable judge evidence bundle lives at `/api/evidence-bundle`. The session panel's Copy Evidence button uses that endpoint to put the core receipts, including schema version, UTC generation time, `PUBLIC_BASE_URL`, runtime status, and readiness, on the clipboard as formatted JSON.
+The copyable judge evidence bundle lives at `/api/evidence-bundle`. The `/evidence` page's Copy Evidence button uses that endpoint to put the core receipts, including schema version, UTC generation time, `PUBLIC_BASE_URL`, runtime status, and readiness, on the clipboard as formatted JSON.
 
-Image provenance lives in `/api/image-descriptions`. Each article illustration carries the planned FLUX.2 klein model id, prompt, seed, asset URL, and fallback status, and the session panel renders those receipts so the generated-image claim is inspectable.
+Image provenance lives in `/api/image-descriptions`. Each article illustration carries the planned FLUX.2 klein model id, prompt, seed, asset URL, and fallback status, and `/evidence` renders those receipts so the generated-image claim is inspectable.
 
 Accessibility evidence lives at `/api/accessibility-audit`. It records the reader-mode choices that matter most for this prototype: semantic reading order, keyboard navigation, reader cursor state, shortcut safety, live narration, image alt text, transcript review, user-controlled playback, and fallback resilience.
 
@@ -81,8 +81,8 @@ Reader navigation interrupts active playback before requesting the next narratio
 
 Every model-facing backend path reports `elapsed_ms`. The frontend surfaces the latest end-to-end reader latency and stores per-item timing in the transcript, giving the build report concrete evidence for the small-model responsiveness claim.
 
-The app exposes `/api/award-evidence` and renders that data in the session panel, so the live demo can point directly to the hackathon bonus targets it is designed to satisfy.
+The app exposes `/api/award-evidence` and renders that data on `/evidence`, so the live demo can point directly to the hackathon bonus targets it is designed to satisfy.
 
 The app also renders `/api/submission-readiness`, so the Field Notes story has a single rollup of which submission claims are currently backed by app evidence.
 
-`/api/runtime-status` keeps the demo honest: if llama.cpp or Kokoro is unavailable, the UI labels the fallback state instead of silently pretending that every model path is online. The session panel also lists the live or fallback state for reader brain, vision, speech, and image generation.
+`/api/runtime-status` keeps the demo honest: if llama.cpp or Kokoro is unavailable, the UI labels the fallback state instead of silently pretending that every model path is online. The `/evidence` page also lists the live or fallback state for reader brain, vision, speech, and image generation.
