@@ -287,6 +287,8 @@ def submission_readiness_core() -> dict[str, Any]:
     runtime_roles = {step["role"] for step in runtime_setup["steps"]}
     expected_roles = set(MODEL_MANIFEST)
     api_paths = {item["path"] for item in demo_script["api_checks"]}
+    post_checks = [item for item in demo_script["api_checks"] if item["method"] == "POST"]
+    post_samples_ready = all(item.get("sample_body") for item in post_checks)
     checks = [
         {
             "id": "tiny_titan_budget",
@@ -341,6 +343,7 @@ def submission_readiness_core() -> dict[str, Any]:
                 "/api/reader-brain",
                 "/api/speak",
             }.issubset(api_paths)
+            and post_samples_ready
             else "fail",
             "evidence": "The judge runbook includes GET evidence checks and executable POST sample bodies.",
         },

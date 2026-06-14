@@ -83,6 +83,8 @@ The verifier checks syntax, static assets, Space metadata consistency, determini
 
 `/api/submission-readiness` aggregates the judging receipts into one pass/fail payload covering model budget, award evidence, custom frontend assets, runtime setup, accessibility, image receipts, and demo API checks.
 
+The readiness rollup only passes the demo API check when POST entries include executable sample bodies.
+
 `/api/evidence-bundle` returns a copyable JSON bundle of the main judging receipts. The Submission Readiness panel includes a Copy Evidence button that writes this bundle to the clipboard.
 
 ## Screen Reader Mode

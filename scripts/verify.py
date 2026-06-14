@@ -340,6 +340,10 @@ def verify_routes() -> None:
         speech_check["sample_body"]["voice"] == app.READER_SETTINGS["default_voice"],
         "Speech demo check should use the default reader voice",
     )
+    assert_true(
+        all(item.get("sample_body") for item in demo_payload["api_checks"] if item["method"] == "POST"),
+        "Every POST demo check should include an executable sample body",
+    )
     reader_sample = client.post(reader_check["path"], json=reader_check["sample_body"])
     assert_true(reader_sample.status_code == 200, "Reader-brain sample payload should be executable")
     reader_sample_payload = reader_sample.json()
@@ -393,6 +397,8 @@ def verify_routes() -> None:
         },
         "Submission readiness should aggregate model, award, frontend, runtime, accessibility, image, and demo evidence",
     )
+    demo_api_check = next(item for item in readiness_payload["checks"] if item["id"] == "demo_api_checks")
+    assert_true(demo_api_check["status"] == "pass", "Submission readiness should pass executable demo API checks")
 
     evidence = client.get("/api/evidence-bundle")
     assert_true(evidence.status_code == 200, "Evidence bundle route should return 200")

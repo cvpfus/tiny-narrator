@@ -30,7 +30,7 @@ Runtime setup is also data-backed. `/api/runtime-setup` lists the app command, l
 
 The judge runbook lives at `/api/demo-script` and is rendered in the session panel with its API evidence checks. It keeps the live presentation repeatable by pairing visible actions with API checks for health, model budget, runtime setup, runtime status, image descriptions, reader narration, and speech.
 
-Submission readiness lives at `/api/submission-readiness`. It aggregates the demo-critical checks into one payload: model budget, award evidence, custom frontend assets, runtime setup, accessibility audit, image receipts, and executable demo API checks.
+Submission readiness lives at `/api/submission-readiness`. It aggregates the demo-critical checks into one payload: model budget, award evidence, custom frontend assets, runtime setup, accessibility audit, image receipts, and executable demo API checks. POST checks must include sample bodies before readiness passes.
 
 The copyable judge evidence bundle lives at `/api/evidence-bundle`. The session panel's Copy Evidence button uses that endpoint to put the core receipts on the clipboard as formatted JSON.
 
