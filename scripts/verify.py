@@ -65,6 +65,12 @@ def verify_static_assets() -> None:
         "Transcript is visible, but clipboard access is unavailable." in app_js,
         "Transcript copy should report unavailable clipboard access",
     )
+    assert_true("transcript-position" in app_js, "Transcript should render the narrated reader position")
+    assert_true("readerItemStatus(node)" in app_js, "Narration transcript entries should include reader item position")
+    assert_true(
+        "[${entry.type} / ${entry.position} / ${entry.runtime}]" in app_js,
+        "Copied transcript should include type, position, and runtime",
+    )
     assert_true("function haltPlayback" in app_js, "Reader controls should expose a shared playback halt helper")
     assert_true(
         "haltPlayback({ clearAutoAdvance: false });" in app_js,

@@ -48,7 +48,7 @@ Reader shortcuts deliberately ignore form controls. A user can adjust the Kokoro
 
 The reader bar exposes the same shortcut contract through `aria-keyshortcuts`. Repeat and Stop also have visible buttons, which keeps the assistive command model available to pointer users and easy for judges to inspect.
 
-Each narration is also added to a visible transcript log. This gives the demo a second accessible surface: users can review what was spoken, copy the session transcript, or clear it before exploring another part of the article. Clipboard failures are labeled in the live narration region instead of being treated as successful copies.
+Each narration is also added to a visible transcript log with reader position, runtime, and latency. This gives the demo a second accessible surface: users can review what was spoken, copy the session transcript, or clear it before exploring another part of the article. Clipboard failures are labeled in the live narration region instead of being treated as successful copies.
 
 Keyboard map:
 

@@ -100,6 +100,7 @@ function renderTranscript() {
           <span>${escapeHtml(entry.type)} (${escapeHtml(formatElapsed(entry.elapsedMs))})</span>
           <span>${escapeHtml(entry.runtime)}</span>
         </div>
+        <p class="transcript-position">${escapeHtml(entry.position)}</p>
         <p class="transcript-text">${escapeHtml(entry.text)}</p>
       </li>
     `)
@@ -646,6 +647,7 @@ async function narrate(index) {
     latencyStatus.textContent = formatElapsed(elapsedMs);
     addTranscriptEntry({
       type: node.type,
+      position: readerItemStatus(node),
       runtime: `${result.runtime}/${speech?.runtime || "voice"}`,
       text: result.narration,
       elapsedMs,
@@ -684,6 +686,7 @@ async function summarizeCurrentSection() {
     latencyStatus.textContent = formatElapsed(elapsedMs);
     addTranscriptEntry({
       type: "summary",
+      position: section.title,
       runtime: `${result.runtime}/${speech?.runtime || "voice"}`,
       text: result.narration,
       elapsedMs,
@@ -749,7 +752,7 @@ copyTranscriptButton.addEventListener("click", async () => {
   const text = transcriptEntries
     .slice()
     .reverse()
-    .map((entry) => `[${entry.type} / ${entry.runtime}] ${entry.text}`)
+    .map((entry) => `[${entry.type} / ${entry.position} / ${entry.runtime}] ${entry.text}`)
     .join("\n");
   await copyTextToClipboard(
     text,

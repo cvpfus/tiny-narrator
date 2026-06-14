@@ -451,7 +451,7 @@ def accessibility_audit_core() -> dict[str, Any]:
             "id": "inspectable_transcript",
             "label": "Inspectable transcript",
             "status": "pass",
-            "evidence": "Narration entries are stored in a visible transcript with copy and clear controls.",
+            "evidence": "Narration entries are stored in a visible transcript with reader position, runtime, latency, copy, and clear controls.",
         },
         {
             "id": "user_control",
