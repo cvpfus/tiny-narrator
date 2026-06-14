@@ -60,6 +60,7 @@ def verify_static_assets() -> None:
     assert_true("demo-api-command" in app_js, "Frontend should render copyable demo commands")
     assert_true("demo-command-copy" in app_js, "Frontend should expose copy buttons for demo commands")
     assert_true("item.powershell" in app_js, "Frontend should render PowerShell-friendly demo commands")
+    assert_true("Tiny Titan pass" in app_js, "Frontend should render per-model Tiny Titan pass labels")
     assert_true("/api/evidence-bundle" in app_js, "Frontend should fetch the evidence bundle for copying")
     assert_true("copyTextToClipboard" in app_js, "Frontend copy actions should share clipboard fallback handling")
     assert_true(

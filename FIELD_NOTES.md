@@ -24,7 +24,7 @@ Tiny Narrator is a small-model accessibility article reader. It is not a generic
 | Speech | `hexgrad/Kokoro-82M` | 82M | Fast screen-reader voice with a tiny footprint. |
 | Image generation | `black-forest-labs/FLUX.2-klein-4B` | 4B | Generates the article illustrations while staying Tiny Titan-safe. |
 
-The app exposes the same budget through `/api/model-budget`, including numeric `params_billion` values and a boolean `all_models_within_limit` check. The session panel renders that payload so the Tiny Titan claim is visible during the demo.
+The app exposes the same budget through `/api/model-budget`, including numeric `params_billion` values, per-model `within_limit` values, and a boolean `all_models_within_limit` check. The session panel renders each model's parameter count and Tiny Titan pass state so the claim is visible during the demo.
 
 Runtime setup is also data-backed. `/api/runtime-setup` lists the app command, llama.cpp launch command, model-specific runtime paths, environment values, and fallbacks. The session panel renders a compact version so the demo can distinguish real model wiring from deterministic safety nets.
 

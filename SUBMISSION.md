@@ -37,7 +37,7 @@ The prototype is designed for a live hackathon demo: every model-facing path has
 ## Evidence endpoints
 
 - `/api/health`: app identity, custom frontend marker, llama.cpp base URL, and model manifest.
-- `/api/model-budget`: Tiny Titan parameter proof with numeric `params_billion` values.
+- `/api/model-budget`: Tiny Titan parameter proof with numeric `params_billion` and per-model pass values.
 - `/api/runtime-setup`: app command, model runtime commands, environment values, and fallback paths.
 - `/api/runtime-status`: online or fallback-ready status for each model path, rendered in the session panel.
 - `/api/accessibility-audit`: semantic queue, keyboard navigation, reader cursor state, shortcut safety, live narration, alt text, transcript, user control, and fallback evidence.

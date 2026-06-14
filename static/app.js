@@ -365,6 +365,7 @@ async function loadModelBudget() {
             <span>${escapeHtml(roleLabel(model.role))}</span>
             <span class="budget-pill">${escapeHtml(model.params)}</span>
           </div>
+          <p>${model.within_limit ? "Tiny Titan pass" : "Review parameter budget"}</p>
           <p>${escapeHtml(model.id)}</p>
         </li>
       `)

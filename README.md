@@ -129,7 +129,7 @@ Navigation commands interrupt current speech before starting the next request, m
 
 Reader-brain, image-description, speech, and image-generation responses include `elapsed_ms`. The session panel and transcript show recent latency so the Field Notes can discuss responsiveness with concrete numbers.
 
-The session panel renders the judge runbook and API evidence checks from `/api/demo-script`, plus manifest-backed evidence for Tiny Titan, Llama Champion, Off-Brand, and Field Notes. A model-budget panel reads `/api/model-budget` so judges can see each role's parameter count in the live app.
+The session panel renders the judge runbook and API evidence checks from `/api/demo-script`, plus manifest-backed evidence for Tiny Titan, Llama Champion, Off-Brand, and Field Notes. A model-budget panel reads `/api/model-budget` so judges can see each role's parameter count and Tiny Titan pass status in the live app.
 
 A submission-readiness panel reads `/api/submission-readiness`, giving judges one compact rollup of the claims the live app can prove.
 
