@@ -56,6 +56,7 @@ def verify_static_assets() -> None:
     assert_true("copyEvidenceButton" in index_html, "Article should expose a copyable evidence bundle button")
     assert_true("loadDemoScript" in app_js, "Frontend should render the structured demo script")
     assert_true("runtimeStatusList.innerHTML" in app_js, "Frontend should render live runtime status details")
+    assert_true("runtime-command" in app_js, "Frontend should render runtime setup commands")
     assert_true("payload.api_checks" in app_js, "Frontend should render structured demo API checks")
     assert_true("demo-api-command" in app_js, "Frontend should render copyable demo commands")
     assert_true("demo-command-copy" in app_js, "Frontend should expose copy buttons for demo commands")

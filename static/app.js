@@ -395,6 +395,7 @@ async function loadRuntimeSetup() {
             <span>${escapeHtml(step.label)}</span>
             <span class="runtime-pill">${escapeHtml(step.runtime)}</span>
           </div>
+          <code class="runtime-command">${escapeHtml(step.command)}</code>
           <p>${escapeHtml(step.fallback)}</p>
         </li>
       `)
