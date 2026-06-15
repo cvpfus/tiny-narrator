@@ -702,10 +702,12 @@ dd {
   transform: translateX(-50%);
   z-index: 30;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  width: min(800px, calc(100% - 32px));
+  box-sizing: border-box;
+  width: min(1200px, calc(100% - 32px));
   min-height: 64px;
   padding: 10px 16px;
   border: 2px solid var(--ink);
@@ -735,7 +737,9 @@ dd {
 .reader-bar label {
   display: inline-flex;
   align-items: center;
+  flex: 0 1 auto;
   gap: 8px;
+  min-width: 0;
   color: var(--muted);
   font-family: var(--mono);
   font-size: 0.76rem;
@@ -752,6 +756,11 @@ dd {
   font-family: var(--mono);
   font-size: 0.76rem;
   padding: 0 10px;
+}
+
+.reader-bar input[type="range"] {
+  width: clamp(96px, 12vw, 160px);
+  min-width: 80px;
 }
 
 .reader-bar output {
