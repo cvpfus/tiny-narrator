@@ -34,13 +34,25 @@ def verify_static_assets() -> None:
         ROOT / "static" / "app.js",
         ROOT / "static" / "generate.js",
         ROOT / "static" / "generated" / "desk-reader.svg",
+        ROOT / "static" / "generated" / "desk-reader.png",
         ROOT / "static" / "generated" / "model-map.svg",
+        ROOT / "static" / "generated" / "model-map.png",
         ROOT / "static" / "generated" / "field-notes.svg",
     ]
     for path in required:
         assert_true(path.exists(), f"Missing required asset: {path}")
+    try:
+        from PIL import Image
+
+        for path in [ROOT / "static" / "generated" / "desk-reader.png", ROOT / "static" / "generated" / "model-map.png"]:
+            with Image.open(path) as image:
+                assert_true(image.size == (1200, 675), f"Vision PNG should match article image ratio: {path}")
+                assert_true(image.format == "PNG", f"Vision companion asset should be PNG: {path}")
+    except ImportError:
+        pass
 
     app_js = (ROOT / "static" / "app.js").read_text(encoding="utf-8")
+    app_source = (ROOT / "app.py").read_text(encoding="utf-8")
     generate_js = (ROOT / "static" / "generate.js").read_text(encoding="utf-8")
     index_html = (ROOT / "static" / "index.html").read_text(encoding="utf-8")
     generate_html = (ROOT / "static" / "generate.html").read_text(encoding="utf-8")
@@ -75,6 +87,9 @@ def verify_static_assets() -> None:
     assert_true("thumbnail.generation_model" in generate_js, "Generate frontend should render Klein thumbnail receipt")
     assert_true('data-reader-type="heading"' in index_html, "Article should mark heading reader nodes")
     assert_true('data-reader-type="image"' in index_html, "Article should mark image reader nodes")
+    assert_true("vision_asset_url" in app_source, "Article images should expose PNG assets for vision APIs")
+    assert_true("/static/generated/desk-reader.png" in app_source, "Desk reader should have a PNG vision asset")
+    assert_true("/static/generated/model-map.png" in app_source, "Model map should have a PNG vision asset")
     assert_true('href="#notes"' not in index_html, "Article navigation should not include the Field Notes section")
     assert_true('id="notes"' not in index_html, "Article UI should not render the Field Notes section")
     assert_true("Field Notes" not in index_html, "Article UI should not render Field Notes copy")
@@ -700,6 +715,20 @@ def verify_minicpm_vision_integration() -> None:
                     request.headers.get("Authorization") == "Bearer secret-key",
                     "MiniCPM client should send bearer auth",
                 )
+
+    with patch.object(app, "MINICPM_VISION_BASE_URL", "https://vision.example/v1"):
+        with patch.object(app, "MINICPM_VISION_API_KEY", "secret-key"):
+            with patch.object(app, "PUBLIC_BASE_URL", "https://tiny.example"):
+                with patch("urllib.request.urlopen", return_value=mock_response) as urlopen_mock:
+                    result = app.describe_image_core("model-map", caption="diagram", prompt="model map")
+                    assert_true(result["runtime"] == "minicpm-v4.6", "Default MiniCPM image-id path should use live response")
+                    request = urlopen_mock.call_args.args[0]
+                    request_body = json.loads(request.data.decode("utf-8"))
+                    image_part = request_body["messages"][0]["content"][1]
+                    assert_true(
+                        image_part["image_url"]["url"] == "https://tiny.example/static/generated/model-map.png",
+                        "MiniCPM default article image path should use PNG companion assets",
+                    )
 
     invalid_response = MagicMock()
     invalid_response.read.return_value = json.dumps({"choices": [{"message": {"content": ""}}]}).encode("utf-8")

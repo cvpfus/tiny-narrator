@@ -112,6 +112,7 @@ ARTICLE_IMAGES: list[dict[str, Any]] = [
     {
         "id": "desk-reader",
         "asset_url": "/static/generated/desk-reader.svg",
+        "vision_asset_url": "/static/generated/desk-reader.png",
         "caption": "The article view doubles as the demo surface, so every feature has a real reading task.",
         "prompt": "Accessibility article reader with highlighted paragraph and narration controls.",
         "seed": 11,
@@ -122,6 +123,7 @@ ARTICLE_IMAGES: list[dict[str, Any]] = [
     {
         "id": "model-map",
         "asset_url": "/static/generated/model-map.svg",
+        "vision_asset_url": "/static/generated/model-map.png",
         "caption": "Each model stays at or below four billion parameters for Tiny Titan eligibility.",
         "prompt": "Diagram of four small AI models working together in an accessibility reader.",
         "seed": 22,
@@ -1021,7 +1023,7 @@ def _absolute_image_url(image_url: str | None, image_id: str | None = None) -> s
     candidate = image_url
     if not candidate and image_id:
         image = _article_image_by_id(image_id)
-        candidate = image.get("asset_url") if image else None
+        candidate = (image.get("vision_asset_url") or image.get("asset_url")) if image else None
     if not candidate:
         return None
     if candidate.startswith(("http://", "https://", "data:")):
@@ -1210,7 +1212,9 @@ def describe_image_core(
         try:
             return {"ok": True, **_call_minicpm_vision(resolved_image_url, caption, prompt)}
         except (OSError, urllib.error.URLError, TimeoutError, KeyError, IndexError, TypeError, ValueError, json.JSONDecodeError) as exc:
-            warning = f"MiniCPM vision unavailable: {exc.__class__.__name__}"
+            detail = _http_exception_detail(exc)
+            _runtime_log(f"MiniCPM vision failed image_url={resolved_image_url} error={detail}")
+            warning = f"MiniCPM vision unavailable: {detail}"
     return {
         "ok": True,
         "runtime": "fallback",
@@ -1229,7 +1233,7 @@ def describe_article_images_core() -> dict[str, Any]:
             image["id"],
             caption=image.get("caption"),
             prompt=image.get("prompt"),
-            image_url=image.get("asset_url"),
+            image_url=image.get("vision_asset_url") or image.get("asset_url"),
         )
         descriptions.append({**image, **description})
     runtimes = {item["runtime"] for item in descriptions}
