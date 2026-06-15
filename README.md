@@ -28,9 +28,9 @@ For the hackathon form, see [SUBMISSION.md](SUBMISSION.md).
 | Role | Model | Params | Runtime |
 | --- | ---: | ---: | --- |
 | Reader brain | `nvidia/NVIDIA-Nemotron-3-Nano-4B-GGUF` | 3.97B | `llama.cpp` |
-| Image understanding | `openbmb/MiniCPM-V-2` | 3B | Python integration planned |
+| Image understanding | `openbmb/MiniCPM-V-4.6` | 1B | OpenAI-compatible chat completions |
 | Text to speech | `hexgrad/Kokoro-82M` | 82M | Python |
-| Image generation | `black-forest-labs/FLUX.2-klein-4B` | 4B | Python integration planned |
+| Image generation | `black-forest-labs/FLUX.2-klein-4B` | 4B | Modal-hosted Klein |
 
 ## Run Locally
 
@@ -54,6 +54,24 @@ python app.py
 
 Open the local URL printed by Gradio. The Reader route calls `/api/reader-brain`, `/api/image-descriptions`, `/api/describe-image`, `/api/speak`, and `/api/model-budget`. The Generate route calls `/api/generate-article`, which drafts an article with the reader-brain model path and attaches a Klein thumbnail receipt.
 
+## Modal Klein Image Generation
+
+The image generation path uses a Modal-hosted `black-forest-labs/FLUX.2-klein-4B` worker. Deploy the worker:
+
+```powershell
+modal deploy modal_workers/klein_image.py
+```
+
+Set `KLEIN_MODAL_ENDPOINT` to the deployed worker URL. When configured, `/api/generate-image` and `/api/generate-article` call the live Modal endpoint for real Klein inference. When the endpoint is not set, unreachable, or returns invalid data, the app falls back to bundled SVG assets with explicit fallback metadata.
+
+`/api/runtime-status` reports whether the Modal Klein worker is online or fallback-ready. `/api/runtime-setup` includes the deploy command and required environment variables.
+
+## MiniCPM-V-4.6 Image Descriptions
+
+The image description path uses `openbmb/MiniCPM-V-4.6` through an OpenAI-compatible `/v1/chat/completions` endpoint. Provide `MINICPM_VISION_BASE_URL` and `MINICPM_VISION_API_KEY` to enable live screen-reader alt text for article images.
+
+When the endpoint is not configured, unreachable, or returns invalid content, `/api/describe-image` and `/api/image-descriptions` fall back to deterministic cached alt text so reader mode remains usable.
+
 Useful environment variables:
 
 | Variable | Default | Purpose |
@@ -63,6 +81,12 @@ Useful environment variables:
 | `GRADIO_SERVER_NAME` | `0.0.0.0` | Bind address for local or Space runtime |
 | `GRADIO_SERVER_PORT` / `PORT` | `7860` | App port |
 | `PUBLIC_BASE_URL` | `http://localhost:7860` | Base URL used in generated judge API commands |
+| `KLEIN_MODAL_ENDPOINT` | *(empty)* | Base URL for the Modal Klein worker, without trailing slash. When set, `/api/generate-image` calls the live worker. |
+| `KLEIN_MODAL_TIMEOUT_SECONDS` | `120` | Request timeout for Modal Klein image generation. |
+| `MINICPM_VISION_BASE_URL` | *(empty)* | OpenAI-compatible MiniCPM-V-4.6 base URL; root or `/v1` both work. |
+| `MINICPM_VISION_API_KEY` | *(empty)* | Bearer token for the MiniCPM vision endpoint. |
+| `MINICPM_VISION_MODEL` | `openbmb/MiniCPM-V-4.6` | Model id sent to chat completions. |
+| `MINICPM_VISION_TIMEOUT_SECONDS` | `45` | Request timeout for image descriptions. |
 
 ## Verification
 
@@ -115,7 +139,7 @@ Reader buttons expose `aria-keyshortcuts`, and the Repeat and Stop shortcuts are
 
 The session panel keeps a transcript of recent narration with reader position, runtime, latency, copy, and clear controls, making the spoken path inspectable during demos and useful for the Field Notes write-up. Copy actions report when browser clipboard access is unavailable, so the visible transcript and commands remain inspectable.
 
-Images start with meaningful fallback `alt` text in the HTML. Image descriptions are then preloaded into a local cache and written into the page's real `img alt` attributes. When the planned MiniCPM-V runtime is unavailable, deterministic alt-text fallbacks keep the screen-reader path usable.
+Images start with meaningful fallback `alt` text in the HTML. Image descriptions are then preloaded into a local cache and written into the page's real `img alt` attributes. When the MiniCPM-V-4.6 endpoint is unavailable, deterministic alt-text fallbacks keep the screen-reader path usable.
 
 `/api/image-descriptions` exposes image receipts so judges can inspect the prompt, seed, planned <=4B image model, and fallback status behind each bundled article illustration without lengthening the reader sidebar.
 
@@ -143,4 +167,4 @@ The sidebar model stack reads `/api/model-budget` so judges can see each role's 
 
 ## Generate Route
 
-The header exposes two routes: Reader and Generate. Generate lets a user enter a topic, calls `/api/generate-article`, and renders a short semantic article with a thumbnail receipt. The text path uses the configured llama.cpp reader-brain model when available and falls back to deterministic article structure. The thumbnail path uses the planned Klein image model metadata and bundled fallback assets until the full image adapter is online.
+The header exposes two routes: Reader and Generate. Generate lets a user enter a topic, calls `/api/generate-article`, and renders a short semantic article with a thumbnail receipt. The text path uses the configured llama.cpp reader-brain model when available and falls back to deterministic article structure. The thumbnail path calls the Modal Klein worker for live image generation when `KLEIN_MODAL_ENDPOINT` is configured, and falls back to bundled SVG assets with explicit runtime metadata when the worker is unavailable.

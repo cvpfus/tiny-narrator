@@ -20,9 +20,9 @@ Tiny Narrator is a small-model accessibility article reader. It is not a generic
 | Role | Model | Size | Why it belongs |
 | --- | --- | ---: | --- |
 | Reader brain | `nvidia/NVIDIA-Nemotron-3-Nano-4B-GGUF` | 3.97B | Local narration planning through llama.cpp. |
-| Vision | `openbmb/MiniCPM-V-2` | 3B | Describes generated article images and handles OCR-like image text. |
+| Vision | `openbmb/MiniCPM-V-4.6` | 1B | Describes generated article images and handles OCR-like image text through an OpenAI-compatible endpoint. |
 | Speech | `hexgrad/Kokoro-82M` | 82M | Fast screen-reader voice with a tiny footprint. |
-| Image generation | `black-forest-labs/FLUX.2-klein-4B` | 4B | Generates the article illustrations while staying Tiny Titan-safe. |
+| Image generation | `black-forest-labs/FLUX.2-klein-4B` | 4B | Generates the article illustrations through a Modal-hosted worker, with bundled SVG fallback. |
 
 The app exposes the same budget through `/api/model-budget`, including numeric `params_billion` values, per-model `within_limit` values, and a boolean `all_models_within_limit` check. The sidebar model stack renders each model id, runtime, parameter count, and Tiny Titan pass state so the claim is visible during the demo.
 
@@ -34,15 +34,15 @@ Submission readiness lives at `/api/submission-readiness`. It aggregates the dem
 
 The judge evidence bundle lives at `/api/evidence-bundle`. That endpoint returns the core receipts, including schema version, UTC generation time, `PUBLIC_BASE_URL`, runtime status, and readiness, as formatted JSON.
 
-Image provenance lives in `/api/image-descriptions`. Each article illustration carries the planned FLUX.2 klein model id, prompt, seed, asset URL, and fallback status so the generated-image claim is inspectable.
+Image provenance lives in `/api/image-descriptions`. Each article illustration carries the planned FLUX.2 klein generation model id, prompt, seed, asset URL, and fallback status. The same response also reports whether image descriptions came from MiniCPM-V-4.6 or cached fallback alt text.
 
-The Generate route uses `/api/generate-article` to turn a user's topic into a short semantic article. It uses the reader-brain model path for article text when llama.cpp is online, keeps a deterministic fallback draft for demos, and attaches thumbnail provenance from `black-forest-labs/FLUX.2-klein-4B`.
+The Generate route uses `/api/generate-article` to turn a user's topic into a short semantic article. It uses the reader-brain model path for article text when llama.cpp is online, keeps a deterministic fallback draft for demos, and attaches thumbnail provenance from `black-forest-labs/FLUX.2-klein-4B`. When `KLEIN_MODAL_ENDPOINT` is configured, the thumbnail uses live Modal Klein inference. Otherwise, bundled SVG assets are served with explicit fallback runtime metadata.
 
 Accessibility evidence lives at `/api/accessibility-audit`. It records the reader-mode choices that matter most for this prototype: semantic reading order, keyboard navigation, reader cursor state, shortcut safety, live narration, image alt text, transcript review, user-controlled playback, and fallback resilience.
 
 ## Reader Mode Behavior
 
-The frontend creates a reading queue from semantic nodes: headings, paragraphs, quotes, figures, captions, and controls. It renders that same queue in the session panel with click-to-read controls, speaks one item at a time, keeps keyboard focus synchronized with the active node, marks that node with `aria-current`, and exposes the current narration through an `aria-live` region.
+The frontend creates an internal reading queue from semantic nodes: headings, paragraphs, quotes, figures, captions, and controls. It speaks one item at a time, keeps keyboard focus synchronized with the active node, marks that node with `aria-current`, and exposes the current narration through an `aria-live` region.
 
 When screen reader mode turns on, the reader cursor starts at the focused article node or the most visible article node. That makes the feature feel connected to what the user is already reading instead of always jumping back to the top of the page.
 
@@ -65,7 +65,7 @@ Keyboard map:
 
 ## Fallback Strategy
 
-Live accessibility demos need dependable behavior. If llama.cpp is not available, the app uses deterministic local narration prefixes. If Kokoro is not installed or cannot load a voice, the app returns a short silent WAV while keeping the transcript visible. If the VLM integration is unavailable, image ids map to cached alt text.
+Live accessibility demos need dependable behavior. If llama.cpp is not available, the app uses deterministic local narration prefixes. If Kokoro is not installed or cannot load a voice, the app returns a short silent WAV while keeping the transcript visible. If the MiniCPM-V-4.6 endpoint is unavailable, image ids map to cached alt text.
 
 The HTML starts with meaningful fallback `alt` text for each generated image. The app then preloads image descriptions through `/api/image-descriptions`, caches them in the frontend, and writes the descriptions back into each image's `alt` attribute. That keeps the visible article, transcript, and spoken image narration aligned even if the model path is unavailable.
 
@@ -87,4 +87,22 @@ The app exposes `/api/award-evidence`, so the live demo can point directly to th
 
 The app also exposes `/api/submission-readiness`, so the Field Notes story has a single rollup of which submission claims are currently backed by app evidence.
 
-`/api/runtime-status` keeps the demo honest: if llama.cpp or Kokoro is unavailable, the API labels the fallback state instead of silently pretending that every model path is online.
+`/api/runtime-status` keeps the demo honest: if llama.cpp, MiniCPM-V-4.6, Kokoro, or Modal Klein is unavailable, the API labels the fallback state instead of silently pretending that every model path is online. The same endpoint reports whether the Modal Klein image worker is online or fallback-ready, so the demo can distinguish live Klein inference from bundled assets.
+
+## MiniCPM-V-4.6 Image Descriptions
+
+The image-description path uses `openbmb/MiniCPM-V-4.6` through an OpenAI-compatible `/v1/chat/completions` endpoint. Set `MINICPM_VISION_BASE_URL` and `MINICPM_VISION_API_KEY` to enable live alt-text generation. `MINICPM_VISION_MODEL` defaults to `openbmb/MiniCPM-V-4.6`, and `MINICPM_VISION_TIMEOUT_SECONDS` controls the request timeout.
+
+The app sends a multimodal chat message with an accessibility-focused prompt and an `image_url`. It asks for one or two concise screen-reader sentences, visible content, meaningful layout or text, and no implementation details.
+
+If the endpoint is missing, unreachable, or returns invalid content, `/api/describe-image` and `/api/image-descriptions` return deterministic cached alt text with fallback runtime metadata. API keys are never included in runtime setup, runtime status, or evidence bundle responses.
+
+## Modal Klein Image Generation
+
+The image generation path runs `black-forest-labs/FLUX.2-klein-4B` through a Modal worker (`modal_workers/klein_image.py`). The worker exposes `POST /generate` for inference and `GET /media/{filename}` for serving generated PNGs from a persistent Modal volume.
+
+Deploy the worker with `modal deploy modal_workers/klein_image.py`, then set `KLEIN_MODAL_ENDPOINT` to the deployed worker URL. The app's `generate_image_core()` calls the Modal endpoint when configured and falls back to bundled SVG assets on missing endpoint, network errors, timeouts, or invalid responses.
+
+`KLEIN_MODAL_TIMEOUT_SECONDS` defaults to 120 seconds, which accommodates warm inference but avoids blocking local demos indefinitely during cold starts.
+
+This design keeps verification stable without requiring Modal credentials or GPU access: the verifier checks fallback behavior, and live Modal deployment is a manual step documented in the README.

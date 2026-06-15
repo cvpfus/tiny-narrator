@@ -24,11 +24,25 @@ STATIC_DIR = ROOT / "static"
 OUTPUT_DIR = ROOT / "outputs"
 OUTPUT_DIR.mkdir(exist_ok=True)
 
+
+def _int_env(name: str, default: int) -> int:
+    try:
+        return int(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        return default
+
+
 LLAMA_CPP_BASE_URL = os.getenv("LLAMA_CPP_BASE_URL", "http://localhost:8080/v1")
 LLAMA_CPP_MODEL = os.getenv("LLAMA_CPP_MODEL", "narrator-brain")
 GRADIO_SERVER_NAME = os.getenv("GRADIO_SERVER_NAME", "0.0.0.0")
 GRADIO_SERVER_PORT = int(os.getenv("PORT", os.getenv("GRADIO_SERVER_PORT", "7860")))
 PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", f"http://localhost:{GRADIO_SERVER_PORT}").rstrip("/")
+KLEIN_MODAL_ENDPOINT = os.getenv("KLEIN_MODAL_ENDPOINT", "").rstrip("/")
+KLEIN_MODAL_TIMEOUT_SECONDS = _int_env("KLEIN_MODAL_TIMEOUT_SECONDS", 120)
+MINICPM_VISION_BASE_URL = os.getenv("MINICPM_VISION_BASE_URL", "").rstrip("/")
+MINICPM_VISION_API_KEY = os.getenv("MINICPM_VISION_API_KEY", "")
+MINICPM_VISION_MODEL = os.getenv("MINICPM_VISION_MODEL", "openbmb/MiniCPM-V-4.6")
+MINICPM_VISION_TIMEOUT_SECONDS = _int_env("MINICPM_VISION_TIMEOUT_SECONDS", 45)
 TINY_TITAN_LIMIT_B = 4.0
 
 MODEL_MANIFEST: dict[str, dict[str, Any]] = {
@@ -40,10 +54,10 @@ MODEL_MANIFEST: dict[str, dict[str, Any]] = {
         "role": "Plans concise narration and reading-order phrasing.",
     },
     "vision": {
-        "id": "openbmb/MiniCPM-V-2",
-        "params": "3B",
-        "params_billion": 3.0,
-        "runtime": "Python integration planned",
+        "id": "openbmb/MiniCPM-V-4.6",
+        "params": "1B",
+        "params_billion": 1.0,
+        "runtime": "OpenAI-compatible chat completions",
         "role": "Describes images and OCR-like visual details.",
     },
     "speech": {
@@ -57,7 +71,7 @@ MODEL_MANIFEST: dict[str, dict[str, Any]] = {
         "id": "black-forest-labs/FLUX.2-klein-4B",
         "params": "4B",
         "params_billion": 4.0,
-        "runtime": "Python integration planned",
+        "runtime": "Modal-hosted Klein",
         "role": "Creates article illustrations.",
     },
 }
@@ -188,18 +202,26 @@ def runtime_setup_core() -> dict[str, Any]:
                 "role": "vision",
                 "label": "Image descriptions",
                 "model": MODEL_MANIFEST["vision"]["id"],
-                "runtime": "Python integration planned",
-                "command": "planned MiniCPM-V adapter",
-                "env": {},
+                "runtime": "OpenAI-compatible chat completions",
+                "command": "vllm serve openbmb/MiniCPM-V-4.6 --host 0.0.0.0 --port 8000",
+                "env": {
+                    "MINICPM_VISION_BASE_URL": MINICPM_VISION_BASE_URL or "(set to OpenAI-compatible base URL)",
+                    "MINICPM_VISION_API_KEY": "(configured)" if MINICPM_VISION_API_KEY else "(not set)",
+                    "MINICPM_VISION_MODEL": MINICPM_VISION_MODEL,
+                    "MINICPM_VISION_TIMEOUT_SECONDS": str(MINICPM_VISION_TIMEOUT_SECONDS),
+                },
                 "fallback": "cached deterministic alt text",
             },
             {
                 "role": "image_generation",
                 "label": "Article images",
                 "model": MODEL_MANIFEST["image_generation"]["id"],
-                "runtime": "Python integration planned",
-                "command": "planned FLUX.2 klein adapter",
-                "env": {},
+                "runtime": "Modal-hosted Klein",
+                "command": "modal deploy modal_workers/klein_image.py",
+                "env": {
+                    "KLEIN_MODAL_ENDPOINT": KLEIN_MODAL_ENDPOINT or "(set to Modal worker URL)",
+                    "KLEIN_MODAL_TIMEOUT_SECONDS": str(KLEIN_MODAL_TIMEOUT_SECONDS),
+                },
                 "fallback": "bundled generated article assets",
             },
         ],
@@ -229,7 +251,7 @@ def demo_script_core() -> dict[str, Any]:
         {"method": "GET", "path": "/api/runtime-setup", "expect": "llama.cpp, Kokoro, vision, and image paths"},
         {"method": "GET", "path": "/api/runtime-status", "expect": "online or fallback-ready runtime labels"},
         {"method": "GET", "path": "/api/accessibility-audit", "expect": "all reader-mode checks pass"},
-        {"method": "GET", "path": "/api/image-descriptions", "expect": "three article image descriptions"},
+        {"method": "GET", "path": "/api/image-descriptions", "expect": "two article image descriptions with MiniCPM-V-4.6 or fallback alt text"},
         {"method": "GET", "path": "/api/submission-readiness", "expect": "all submission readiness checks pass"},
         {
             "method": "POST",
@@ -528,6 +550,7 @@ class ImageDescriptionRequest(BaseModel):
     image_id: str
     caption: str | None = None
     prompt: str | None = None
+    image_url: str | None = None
 
 
 class SpeechRequest(BaseModel):
@@ -551,6 +574,15 @@ def _json(data: dict[str, Any], status_code: int = 200) -> JSONResponse:
 
 def _elapsed_ms(start: float) -> int:
     return round((time.perf_counter() - start) * 1000)
+
+
+def _validate_modal_klein_health(payload: dict[str, Any]) -> None:
+    if payload.get("ok") is not True:
+        raise ValueError("health check did not return ok")
+    if payload.get("model") != MODEL_MANIFEST["image_generation"]["id"]:
+        raise ValueError("health check returned unexpected model")
+    if payload.get("runtime") != "modal-klein":
+        raise ValueError("health check returned unexpected runtime")
 
 
 def _runtime_status_core() -> dict[str, Any]:
@@ -584,15 +616,46 @@ def _runtime_status_core() -> dict[str, Any]:
     kokoro_available = importlib.util.find_spec("kokoro") is not None
     soundfile_available = importlib.util.find_spec("soundfile") is not None
 
+    klein_status: dict[str, Any]
+    if KLEIN_MODAL_ENDPOINT:
+        try:
+            request = urllib.request.Request(
+                f"{KLEIN_MODAL_ENDPOINT}/health", method="GET",
+            )
+            with urllib.request.urlopen(request, timeout=5) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            _validate_modal_klein_health(payload)
+            klein_status = {
+                "available": True,
+                "status": "online",
+                "model": MODEL_MANIFEST["image_generation"]["id"],
+                "endpoint": KLEIN_MODAL_ENDPOINT,
+                "elapsed_ms": _elapsed_ms(start),
+            }
+        except (OSError, urllib.error.URLError, TimeoutError, ValueError, json.JSONDecodeError) as exc:
+            klein_status = {
+                "available": False,
+                "status": "fallback-ready",
+                "model": MODEL_MANIFEST["image_generation"]["id"],
+                "endpoint": KLEIN_MODAL_ENDPOINT,
+                "fallback": "bundled generated article assets",
+                "warning": exc.__class__.__name__,
+                "elapsed_ms": _elapsed_ms(start),
+            }
+    else:
+        klein_status = {
+            "available": False,
+            "status": "fallback-ready",
+            "model": MODEL_MANIFEST["image_generation"]["id"],
+            "fallback": "bundled generated article assets",
+        }
+
+    vision_status = _vision_runtime_status()
+
     return {
         "ok": True,
         "reader_brain": llama_status,
-        "vision": {
-            "available": False,
-            "status": "fallback-ready",
-            "model": "OpenBMB MiniCPM-V-2",
-            "fallback": "cached deterministic alt text",
-        },
+        "vision": vision_status,
         "speech": {
             "available": kokoro_available and soundfile_available,
             "status": "online" if kokoro_available and soundfile_available else "fallback-ready",
@@ -601,12 +664,7 @@ def _runtime_status_core() -> dict[str, Any]:
             "soundfile_installed": soundfile_available,
             "fallback": "browser speech plus transcript",
         },
-        "image_generation": {
-            "available": False,
-            "status": "placeholder-ready",
-            "model": "black-forest-labs/FLUX.2-klein-4B",
-            "fallback": "bundled generated article assets",
-        },
+        "image_generation": klein_status,
         "elapsed_ms": _elapsed_ms(start),
     }
 
@@ -742,10 +800,36 @@ def reader_brain_core(node_type: str, text: str, position: str | None, mode: str
         }
 
 
-def describe_image_core(image_id: str, caption: str | None, prompt: str | None) -> dict[str, Any]:
-    start = time.perf_counter()
-    # The first committed slice keeps the API stable while the MiniCPM-V runtime lands next.
-    # The frontend passes deterministic image ids so cached descriptions can replace this later.
+def _openai_compatible_url(base_url: str, path: str) -> str:
+    normalized = base_url.rstrip("/")
+    if normalized.endswith("/v1/chat/completions"):
+        root = normalized[: -len("/chat/completions")]
+    elif normalized.endswith("/v1"):
+        root = normalized
+    else:
+        root = f"{normalized}/v1"
+    return f"{root}/{path.lstrip('/')}"
+
+
+def _article_image_by_id(image_id: str) -> dict[str, Any] | None:
+    return next((image for image in ARTICLE_IMAGES if image["id"] == image_id), None)
+
+
+def _absolute_image_url(image_url: str | None, image_id: str | None = None) -> str | None:
+    candidate = image_url
+    if not candidate and image_id:
+        image = _article_image_by_id(image_id)
+        candidate = image.get("asset_url") if image else None
+    if not candidate:
+        return None
+    if candidate.startswith(("http://", "https://", "data:")):
+        return candidate
+    if candidate.startswith("/"):
+        return f"{PUBLIC_BASE_URL}{candidate}"
+    return f"{PUBLIC_BASE_URL}/{candidate}"
+
+
+def _vision_fallback_text(image_id: str, caption: str | None, prompt: str | None) -> str:
     descriptions = {
         "desk-reader": (
             "A person reads a long article on a laptop while an accessibility toolbar "
@@ -756,15 +840,136 @@ def describe_image_core(image_id: str, caption: str | None, prompt: str | None) 
             "reader brain, speech, and image generation."
         ),
     }
-    alt_text = descriptions.get(
+    return descriptions.get(
         image_id,
         caption or prompt or "A generated article image awaiting model description.",
     )
+
+
+def _clean_alt_text(text: str, limit: int = 260) -> str:
+    return _compact_text(" ".join(text.split()), limit)
+
+
+def _minicpm_vision_prompt(caption: str | None, prompt: str | None) -> str:
+    context = " ".join(part for part in [caption, prompt] if part)
+    context_line = f"\nContext: {context}" if context else ""
+    return (
+        "Describe this image for a screen reader in one or two concise sentences. "
+        "Mention visible content, layout, important text, and purpose when relevant. "
+        "Do not guess hidden intent. Do not mention models, implementation details, or that you are an AI. "
+        "Return plain text only."
+        f"{context_line}"
+    )
+
+
+def _call_minicpm_vision(image_url: str, caption: str | None, prompt: str | None) -> dict[str, Any]:
+    start = time.perf_counter()
+    body = json.dumps(
+        {
+            "model": MINICPM_VISION_MODEL,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": _minicpm_vision_prompt(caption, prompt)},
+                        {"type": "image_url", "image_url": {"url": image_url}},
+                    ],
+                }
+            ],
+            "temperature": 0.1,
+            "max_tokens": 160,
+        }
+    ).encode("utf-8")
+    request = urllib.request.Request(
+        _openai_compatible_url(MINICPM_VISION_BASE_URL, "chat/completions"),
+        data=body,
+        headers={
+            "Authorization": f"Bearer {MINICPM_VISION_API_KEY}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=MINICPM_VISION_TIMEOUT_SECONDS) as response:
+        payload = json.loads(response.read().decode("utf-8"))
+    content = payload["choices"][0]["message"]["content"]
+    if not isinstance(content, str) or not content.strip():
+        raise ValueError("MiniCPM vision response did not include text content")
+    return {
+        "runtime": "minicpm-v4.6",
+        "model": MINICPM_VISION_MODEL,
+        "alt_text": _clean_alt_text(content),
+        "elapsed_ms": _elapsed_ms(start),
+    }
+
+
+def _vision_runtime_status() -> dict[str, Any]:
+    if not MINICPM_VISION_BASE_URL or not MINICPM_VISION_API_KEY:
+        return {
+            "available": False,
+            "status": "fallback-ready",
+            "model": MINICPM_VISION_MODEL,
+            "configured": False,
+            "fallback": "cached deterministic alt text",
+        }
+    start = time.perf_counter()
+    try:
+        request = urllib.request.Request(
+            _openai_compatible_url(MINICPM_VISION_BASE_URL, "models"),
+            headers={"Authorization": f"Bearer {MINICPM_VISION_API_KEY}"},
+            method="GET",
+        )
+        with urllib.request.urlopen(request, timeout=5) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        model_ids = [
+            item.get("id", "")
+            for item in payload.get("data", [])
+            if isinstance(item, dict)
+        ]
+        if model_ids and MINICPM_VISION_MODEL not in model_ids:
+            raise ValueError("MiniCPM vision model was not listed by /models")
+        return {
+            "available": True,
+            "status": "online",
+            "model": MINICPM_VISION_MODEL,
+            "configured": True,
+            "base_url": MINICPM_VISION_BASE_URL,
+            "models": model_ids,
+            "elapsed_ms": _elapsed_ms(start),
+        }
+    except (OSError, urllib.error.URLError, TimeoutError, ValueError, json.JSONDecodeError) as exc:
+        return {
+            "available": False,
+            "status": "fallback-ready",
+            "model": MINICPM_VISION_MODEL,
+            "configured": True,
+            "base_url": MINICPM_VISION_BASE_URL,
+            "fallback": "cached deterministic alt text",
+            "warning": exc.__class__.__name__,
+            "elapsed_ms": _elapsed_ms(start),
+        }
+
+
+def describe_image_core(
+    image_id: str,
+    caption: str | None,
+    prompt: str | None,
+    image_url: str | None = None,
+) -> dict[str, Any]:
+    start = time.perf_counter()
+    resolved_image_url = _absolute_image_url(image_url, image_id)
+    alt_text = _vision_fallback_text(image_id, caption, prompt)
+    warning = None
+    if MINICPM_VISION_BASE_URL and MINICPM_VISION_API_KEY and resolved_image_url:
+        try:
+            return {"ok": True, **_call_minicpm_vision(resolved_image_url, caption, prompt)}
+        except (OSError, urllib.error.URLError, TimeoutError, KeyError, IndexError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            warning = f"MiniCPM vision unavailable: {exc.__class__.__name__}"
     return {
         "ok": True,
-        "runtime": "MiniCPM-V placeholder",
-        "model": "OpenBMB MiniCPM-V-2",
+        "runtime": "fallback",
+        "model": MINICPM_VISION_MODEL,
         "alt_text": alt_text,
+        "warning": warning,
         "elapsed_ms": _elapsed_ms(start),
     }
 
@@ -777,12 +982,14 @@ def describe_article_images_core() -> dict[str, Any]:
             image["id"],
             caption=image.get("caption"),
             prompt=image.get("prompt"),
+            image_url=image.get("asset_url"),
         )
         descriptions.append({**image, **description})
+    runtimes = {item["runtime"] for item in descriptions}
     return {
         "ok": True,
-        "runtime": "MiniCPM-V placeholder",
-        "model": "OpenBMB MiniCPM-V-2",
+        "runtime": runtimes.pop() if len(runtimes) == 1 else "mixed",
+        "model": MINICPM_VISION_MODEL,
         "descriptions": descriptions,
         "elapsed_ms": _elapsed_ms(start),
     }
@@ -845,17 +1052,62 @@ def speak_core(text: str, voice: str, speed: float) -> dict[str, Any]:
     }
 
 
-def generate_image_core(prompt: str, seed: int | None) -> dict[str, Any]:
+def _call_modal_klein(prompt: str, seed: int | None) -> dict[str, Any]:
+    """Call the Modal Klein worker for live image generation."""
+    start = time.perf_counter()
+    body = json.dumps({"prompt": prompt, "seed": seed}).encode("utf-8")
+    request = urllib.request.Request(
+        f"{KLEIN_MODAL_ENDPOINT}/generate",
+        data=body,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=KLEIN_MODAL_TIMEOUT_SECONDS) as response:
+        payload = json.loads(response.read().decode("utf-8"))
+    if payload.get("ok") is not True:
+        raise ValueError(str(payload.get("error") or payload.get("detail") or "Modal Klein returned ok=false"))
+    if payload.get("model") != MODEL_MANIFEST["image_generation"]["id"]:
+        raise ValueError("Modal Klein returned unexpected model")
+    if payload.get("runtime") != "modal-klein":
+        raise ValueError("Modal Klein returned unexpected runtime")
+    image_url = payload.get("image_url", "")
+    if not isinstance(image_url, str) or not image_url:
+        raise ValueError("Modal Klein response did not include image_url")
+    if image_url and image_url.startswith("/media/"):
+        image_url = f"{KLEIN_MODAL_ENDPOINT}{image_url}"
+    return {
+        "ok": True,
+        "runtime": payload.get("runtime", "modal-klein"),
+        "model": payload.get("model", MODEL_MANIFEST["image_generation"]["id"]),
+        "image_url": image_url,
+        "prompt": payload.get("prompt", prompt),
+        "seed": payload.get("seed", seed),
+        "elapsed_ms": payload.get("elapsed_ms", _elapsed_ms(start)),
+    }
+
+
+def _fallback_image(prompt: str, seed: int | None, warning: str | None = None) -> dict[str, Any]:
+    """Return bundled fallback SVG assets when Modal is unavailable."""
     start = time.perf_counter()
     return {
         "ok": True,
-        "runtime": "placeholder",
-        "model": "black-forest-labs/FLUX.2-klein-4B",
+        "runtime": "fallback",
+        "model": MODEL_MANIFEST["image_generation"]["id"],
         "image_url": f"/static/generated/{'desk-reader.svg' if seed and seed % 2 else 'model-map.svg'}",
         "prompt": prompt,
         "seed": seed,
+        "warning": warning,
         "elapsed_ms": _elapsed_ms(start),
     }
+
+
+def generate_image_core(prompt: str, seed: int | None) -> dict[str, Any]:
+    if KLEIN_MODAL_ENDPOINT:
+        try:
+            return _call_modal_klein(prompt, seed)
+        except (OSError, urllib.error.URLError, TimeoutError, ValueError, KeyError, json.JSONDecodeError) as exc:
+            return _fallback_image(prompt, seed, warning=f"Modal Klein unavailable: {exc.__class__.__name__}")
+    return _fallback_image(prompt, seed)
 
 
 def generate_article_core(topic: str) -> dict[str, Any]:
@@ -1008,7 +1260,7 @@ async def reader_brain_endpoint(payload: ReaderBrainRequest) -> JSONResponse:
 
 @app.post("/api/describe-image")
 async def describe_image_endpoint(payload: ImageDescriptionRequest) -> JSONResponse:
-    return _json(describe_image_core(payload.image_id, payload.caption, payload.prompt))
+    return _json(describe_image_core(payload.image_id, payload.caption, payload.prompt, payload.image_url))
 
 
 @app.get("/api/image-descriptions")
@@ -1037,8 +1289,8 @@ def reader_brain_api(node_type: str, text: str, position: str = "", mode: str = 
 
 
 @app.api(name="describe_image")
-def describe_image_api(image_id: str, caption: str = "", prompt: str = "") -> str:
-    return json.dumps(describe_image_core(image_id, caption, prompt))
+def describe_image_api(image_id: str, caption: str = "", prompt: str = "", image_url: str = "") -> str:
+    return json.dumps(describe_image_core(image_id, caption, prompt, image_url))
 
 
 @app.api(name="describe_article_images")

@@ -22,16 +22,16 @@ The prototype is designed for a live hackathon demo: every model-facing path has
 | Role | Model | Size | Runtime |
 | --- | --- | ---: | --- |
 | Reader brain | `nvidia/NVIDIA-Nemotron-3-Nano-4B-GGUF` | 3.97B | `llama.cpp` |
-| Image understanding | `openbmb/MiniCPM-V-2` | 3B | Python integration planned |
+| Image understanding | `openbmb/MiniCPM-V-4.6` | 1B | OpenAI-compatible chat completions |
 | Speech | `hexgrad/Kokoro-82M` | 82M | Python |
-| Image generation | `black-forest-labs/FLUX.2-klein-4B` | 4B | Python integration planned |
+| Image generation | `black-forest-labs/FLUX.2-klein-4B` | 4B | Modal-hosted Klein (bundled fallback when not configured) |
 
 ## Demo flow
 
 1. Open the article and show that the app is a custom article interface, not a stock chatbot page.
 2. Turn on screen-reader mode and press `Space` or `Next` to narrate the first semantic node.
 3. Use `Heading`, `Image`, and `Summary` to navigate by article meaning instead of by raw page order.
-4. Show the reader-first session panel: current item, live narration, reader queue, transcript, and latency.
+4. Show the reader-first session panel: current item, live narration, transcript, model stack, and latency.
 5. Point to the model stack panel for model id, runtime, parameter count, and Tiny Titan pass status.
 6. Open the Generate route, enter a topic, and show the generated article plus `black-forest-labs/FLUX.2-klein-4B` thumbnail receipt.
 7. Mention that `/api/demo-script` exposes the judge runbook and API evidence checks as structured data.
@@ -53,7 +53,9 @@ The checks in `/api/demo-script` include copyable curl and PowerShell-friendly `
 
 The accessibility audit also documents reader-mode details that matter during judging: the active item is exposed as a reader cursor with focus, visible outline, stable id, and `aria-current`; global shortcuts ignore form controls so voice, speed, and auto-advance settings remain usable while reader mode is active; reader controls expose `aria-keyshortcuts` plus visible Repeat and Stop commands.
 
-The image receipts keep the generated-asset claim inspectable: each article illustration names the planned `black-forest-labs/FLUX.2-klein-4B` path, prompt, seed, and bundled fallback asset.
+The image receipts distinguish live Modal Klein inference from bundled fallback assets. When `KLEIN_MODAL_ENDPOINT` is configured and reachable, generated thumbnails use real `black-forest-labs/FLUX.2-klein-4B` inference through Modal. When the worker is unavailable, bundled SVG assets are used with explicit fallback runtime metadata.
+
+Image descriptions use `openbmb/MiniCPM-V-4.6` through an OpenAI-compatible `/v1/chat/completions` endpoint when `MINICPM_VISION_BASE_URL` and `MINICPM_VISION_API_KEY` are configured. Without that endpoint, cached deterministic alt text keeps screen-reader mode stable.
 
 The submission-readiness panel and API give judges a compact checklist for the whole build, so the live demo can move from individual receipts to an overall readiness view.
 
@@ -61,4 +63,4 @@ The submission-readiness panel and API give judges a compact checklist for the w
 
 ## Reliability notes
 
-The demo remains navigable when local models are unavailable. The reader brain falls back to deterministic narration, generated images start with meaningful HTML alt text, image descriptions fall back to cached alt text, speech falls back to browser speech plus transcript, and generated images fall back to bundled article assets. Fallback states are labeled instead of hidden.
+The demo remains navigable when local models are unavailable. The reader brain falls back to deterministic narration, generated images start with meaningful HTML alt text, image descriptions fall back to cached alt text, speech falls back to browser speech plus transcript, and image generation falls back to bundled article assets when the Modal Klein worker is not configured or unreachable. Fallback states are labeled instead of hidden.

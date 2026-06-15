@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import json
 import py_compile
 import sys
 import wave
 from pathlib import Path
+from unittest.mock import patch, MagicMock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -202,6 +204,8 @@ def verify_core_fallbacks() -> None:
     description = app.describe_image_core("model-map", caption=None, prompt=None)
     assert_true(description["ok"], "Image description did not return ok")
     assert_true("small AI models" in description["alt_text"], "Image description fallback changed unexpectedly")
+    assert_true(description["runtime"] == "fallback", "Image description without MiniCPM config should use fallback runtime")
+    assert_true(description["model"] == app.MODEL_MANIFEST["vision"]["id"], "Image description should report the vision model id")
     assert_true(isinstance(description["elapsed_ms"], int), "Image description should include elapsed_ms")
 
     article_descriptions = app.describe_article_images_core()
@@ -216,6 +220,8 @@ def verify_core_fallbacks() -> None:
         "Article image descriptions should include generation seeds",
     )
     assert_true(isinstance(article_descriptions["elapsed_ms"], int), "Article image descriptions should include elapsed_ms")
+    assert_true(article_descriptions["model"] == app.MODEL_MANIFEST["vision"]["id"], "Article image descriptions should report vision model id")
+    assert_true(article_descriptions["runtime"] == "fallback", "Article image descriptions should use fallback without MiniCPM config")
 
     speech = app.speak_core("Tiny Narrator verification.", voice="af_heart", speed=1.0)
     assert_true(speech["ok"], "Speech path did not return ok")
@@ -229,6 +235,16 @@ def verify_core_fallbacks() -> None:
     generated = app.generate_image_core("Tiny accessibility article image.", seed=3)
     assert_true(generated["ok"], "Image generation placeholder should return ok")
     assert_true(isinstance(generated["elapsed_ms"], int), "Image generation should include elapsed_ms")
+    assert_true(generated["runtime"] == "fallback", "Image generation without Modal should report fallback runtime")
+    assert_true(generated["model"] == app.MODEL_MANIFEST["image_generation"]["id"], "Image generation should report Klein model id")
+    assert_true(generated["seed"] == 3, "Image generation should preserve the seed")
+    assert_true(generated["image_url"].startswith("/static/generated/"), "Fallback image should use bundled assets")
+    assert_true(generated.get("warning") is None, "Fallback without attempted call should have no warning")
+
+    generated_no_seed = app.generate_image_core("Another image prompt.", seed=None)
+    assert_true(generated_no_seed["ok"], "Image generation without seed should return ok")
+    assert_true(generated_no_seed["runtime"] == "fallback", "Image generation without Modal should report fallback")
+    assert_true(generated_no_seed["seed"] is None, "Image generation should pass through None seed")
 
     article = app.generate_article_core("tiny classroom robotics")
     assert_true(article["ok"], "Article generation should return ok")
@@ -238,6 +254,202 @@ def verify_core_fallbacks() -> None:
         article["thumbnail"]["generation_model"] == app.MODEL_MANIFEST["image_generation"]["id"],
         "Article generation should use the Klein image model for thumbnail receipt",
     )
+
+
+def verify_modal_klein_integration() -> None:
+    """Test Modal Klein integration with mocked HTTP responses."""
+    # Test: no endpoint configured returns deterministic fallback
+    with patch.object(app, "KLEIN_MODAL_ENDPOINT", ""):
+        result = app.generate_image_core("test prompt", seed=42)
+        assert_true(result["ok"], "No-endpoint fallback should return ok")
+        assert_true(result["runtime"] == "fallback", "No-endpoint should report fallback runtime")
+        assert_true(result["image_url"].startswith("/static/generated/"), "No-endpoint should use bundled assets")
+        assert_true(result["model"] == app.MODEL_MANIFEST["image_generation"]["id"], "Fallback should report Klein model")
+
+    # Test: configured endpoint returning valid JSON is surfaced as live Modal inference
+    mock_response_data = {
+        "ok": True,
+        "runtime": "modal-klein",
+        "model": "black-forest-labs/FLUX.2-klein-4B",
+        "image_url": "/media/klein-abc123.png",
+        "prompt": "test prompt",
+        "seed": 42,
+        "elapsed_ms": 5000,
+    }
+    mock_response = MagicMock()
+    mock_response.read.return_value = json.dumps(mock_response_data).encode("utf-8")
+    mock_response.__enter__ = lambda s: s
+    mock_response.__exit__ = MagicMock(return_value=False)
+
+    with patch.object(app, "KLEIN_MODAL_ENDPOINT", "https://example-modal.modal.run"):
+        with patch("urllib.request.urlopen", return_value=mock_response):
+            result = app.generate_image_core("test prompt", seed=42)
+            assert_true(result["ok"], "Modal success should return ok")
+            assert_true(result["runtime"] == "modal-klein", "Modal success should report modal-klein runtime")
+            assert_true(
+                result["image_url"] == "https://example-modal.modal.run/media/klein-abc123.png",
+                "Modal success should return full media URL",
+            )
+            assert_true(result["prompt"] == "test prompt", "Modal success should preserve prompt")
+            assert_true(result["seed"] == 42, "Modal success should preserve seed")
+
+    # Test: configured endpoint failure falls back with a visible warning
+    with patch.object(app, "KLEIN_MODAL_ENDPOINT", "https://example-modal.modal.run"):
+        with patch("urllib.request.urlopen", side_effect=TimeoutError("Connection timed out")):
+            result = app.generate_image_core("test prompt", seed=42)
+            assert_true(result["ok"], "Modal failure fallback should return ok")
+            assert_true(result["runtime"] == "fallback", "Modal failure should report fallback runtime")
+            assert_true(
+                result["image_url"].startswith("/static/generated/"),
+                "Modal failure should use bundled assets",
+            )
+            assert_true(
+                result.get("warning") is not None and "TimeoutError" in result["warning"],
+                "Modal failure should include a visible warning with the error class",
+            )
+
+    # Test: invalid Modal JSON response falls back instead of pretending success
+    invalid_response = MagicMock()
+    invalid_response.read.return_value = json.dumps({"ok": False, "error": "prompt is required"}).encode("utf-8")
+    invalid_response.__enter__ = lambda s: s
+    invalid_response.__exit__ = MagicMock(return_value=False)
+
+    with patch.object(app, "KLEIN_MODAL_ENDPOINT", "https://example-modal.modal.run"):
+        with patch("urllib.request.urlopen", return_value=invalid_response):
+            result = app.generate_image_core("test prompt", seed=42)
+            assert_true(result["runtime"] == "fallback", "Invalid Modal response should use fallback runtime")
+            assert_true(
+                result.get("warning") is not None and "ValueError" in result["warning"],
+                "Invalid Modal response should include a validation warning",
+            )
+
+    # Test: Modal worker static checks
+    worker_path = ROOT / "modal_workers" / "klein_image.py"
+    assert_true(worker_path.exists(), "Modal worker file should exist")
+    worker_source = worker_path.read_text(encoding="utf-8")
+    assert_true("modal.App" in worker_source, "Modal worker should create a Modal App")
+    assert_true("modal.Volume" in worker_source, "Modal worker should use a Modal Volume")
+    assert_true("FLUX.2-klein-4B" in worker_source, "Modal worker should reference the Klein model")
+    assert_true("modal.asgi_app" in worker_source, "Modal worker should expose one ASGI app")
+    assert_true('@api.post("/generate")' in worker_source, "Modal worker should expose POST /generate")
+    assert_true('@api.get("/health")' in worker_source, "Modal worker should expose GET /health")
+    assert_true('@api.get("/media/{filename}")' in worker_source, "Modal worker should expose GET /media/{filename}")
+    assert_true("404" in worker_source or "not found" in worker_source.lower(), "Modal worker should handle missing media with 404")
+    assert_true("reload" in worker_source, "Modal worker should reload volume before serving")
+
+    # Test: runtime status includes Modal Klein path
+    with patch.object(app, "KLEIN_MODAL_ENDPOINT", ""):
+        status = app._runtime_status_core()
+        assert_true("image_generation" in status, "Runtime status should include image_generation")
+        assert_true(
+            status["image_generation"]["status"] in {"online", "fallback-ready"},
+            "Image generation status should be online or fallback-ready",
+        )
+        assert_true(
+            status["image_generation"]["model"] == app.MODEL_MANIFEST["image_generation"]["id"],
+            "Image generation status should reference the Klein model",
+        )
+
+    # Test: invalid health payload is fallback-ready, not online
+    bad_health = MagicMock()
+    bad_health.read.return_value = json.dumps({"ok": True, "model": "wrong", "runtime": "modal-klein"}).encode("utf-8")
+    bad_health.__enter__ = lambda s: s
+    bad_health.__exit__ = MagicMock(return_value=False)
+    with patch.object(app, "KLEIN_MODAL_ENDPOINT", "https://example-modal.modal.run"):
+        with patch("urllib.request.urlopen", return_value=bad_health):
+            status = app._runtime_status_core()
+            assert_true(
+                status["image_generation"]["status"] == "fallback-ready",
+                "Invalid Modal health should not be marked online",
+            )
+            assert_true("ValueError" in status["image_generation"].get("warning", ""), "Invalid health should report validation warning")
+
+    # Test: runtime setup includes Modal deploy command
+    setup = app.runtime_setup_core()
+    image_step = next(step for step in setup["steps"] if step["role"] == "image_generation")
+    assert_true(
+        "modal deploy" in image_step["command"],
+        "Runtime setup should include modal deploy command for image generation",
+    )
+    assert_true(
+        "KLEIN_MODAL_ENDPOINT" in image_step["env"],
+        "Runtime setup should document KLEIN_MODAL_ENDPOINT",
+    )
+
+
+def verify_minicpm_vision_integration() -> None:
+    with patch.object(app, "MINICPM_VISION_BASE_URL", ""), patch.object(app, "MINICPM_VISION_API_KEY", ""):
+        result = app.describe_image_core("model-map", caption=None, prompt=None)
+        assert_true(result["ok"], "No-config MiniCPM fallback should return ok")
+        assert_true(result["runtime"] == "fallback", "No-config MiniCPM should report fallback runtime")
+        assert_true(result["model"] == app.MODEL_MANIFEST["vision"]["id"], "No-config MiniCPM should report vision model")
+        assert_true(result.get("warning") is None, "No-config MiniCPM fallback should stay quiet")
+
+    mock_response_data = {
+        "choices": [
+            {
+                "message": {
+                    "content": "A compact diagram shows four small AI models connected around an accessibility reader."
+                }
+            }
+        ]
+    }
+    mock_response = MagicMock()
+    mock_response.read.return_value = json.dumps(mock_response_data).encode("utf-8")
+    mock_response.__enter__ = lambda s: s
+    mock_response.__exit__ = MagicMock(return_value=False)
+
+    with patch.object(app, "MINICPM_VISION_BASE_URL", "https://vision.example/v1"):
+        with patch.object(app, "MINICPM_VISION_API_KEY", "secret-key"):
+            with patch("urllib.request.urlopen", return_value=mock_response) as urlopen_mock:
+                result = app.describe_image_core("model-map", caption="diagram", prompt="model map", image_url="/static/generated/model-map.svg")
+                assert_true(result["ok"], "Live MiniCPM response should return ok")
+                assert_true(result["runtime"] == "minicpm-v4.6", "Live MiniCPM response should report runtime")
+                assert_true(result["model"] == app.MINICPM_VISION_MODEL, "Live MiniCPM response should report configured model")
+                assert_true("accessibility reader" in result["alt_text"], "Live MiniCPM response should use returned alt text")
+                request = urlopen_mock.call_args.args[0]
+                assert_true(
+                    request.full_url == "https://vision.example/v1/chat/completions",
+                    "MiniCPM client should normalize base URL to chat completions",
+                )
+                assert_true(
+                    request.headers.get("Authorization") == "Bearer secret-key",
+                    "MiniCPM client should send bearer auth",
+                )
+
+    invalid_response = MagicMock()
+    invalid_response.read.return_value = json.dumps({"choices": [{"message": {"content": ""}}]}).encode("utf-8")
+    invalid_response.__enter__ = lambda s: s
+    invalid_response.__exit__ = MagicMock(return_value=False)
+
+    with patch.object(app, "MINICPM_VISION_BASE_URL", "https://vision.example"):
+        with patch.object(app, "MINICPM_VISION_API_KEY", "secret-key"):
+            with patch("urllib.request.urlopen", return_value=invalid_response):
+                result = app.describe_image_core("custom", caption="fallback caption", prompt=None, image_url="https://example.com/image.png")
+                assert_true(result["runtime"] == "fallback", "Invalid MiniCPM response should fall back")
+                assert_true(result["alt_text"] == "fallback caption", "Invalid MiniCPM response should preserve fallback text")
+                assert_true(
+                    result.get("warning") is not None and "ValueError" in result["warning"],
+                    "Invalid MiniCPM response should include validation warning",
+                )
+
+    models_response = MagicMock()
+    models_response.read.return_value = json.dumps({"data": [{"id": app.MINICPM_VISION_MODEL}]}).encode("utf-8")
+    models_response.__enter__ = lambda s: s
+    models_response.__exit__ = MagicMock(return_value=False)
+
+    with patch.object(app, "MINICPM_VISION_BASE_URL", "https://vision.example/v1"):
+        with patch.object(app, "MINICPM_VISION_API_KEY", "secret-key"):
+            with patch("urllib.request.urlopen", return_value=models_response):
+                status = app._vision_runtime_status()
+                assert_true(status["status"] == "online", "MiniCPM /models response should mark vision online")
+                assert_true("secret-key" not in json.dumps(status), "Vision runtime status should not expose API key")
+
+    setup = app.runtime_setup_core()
+    vision_step = next(step for step in setup["steps"] if step["role"] == "vision")
+    assert_true("MiniCPM-V-4.6" in vision_step["model"], "Runtime setup should document MiniCPM-V-4.6")
+    assert_true("MINICPM_VISION_BASE_URL" in vision_step["env"], "Runtime setup should document MiniCPM base URL")
+    assert_true("secret" not in json.dumps(vision_step).lower(), "Runtime setup should not expose MiniCPM API key")
 
 
 def verify_output_retention() -> None:
@@ -540,8 +752,8 @@ def verify_routes() -> None:
     )
     assert_true(evidence_payload["runtime_status"]["ok"], "Evidence bundle should include ok runtime status")
     assert_true(
-        {"reader_brain", "speech"} <= set(evidence_payload["runtime_status"]),
-        "Evidence bundle runtime status should include reader brain and speech status",
+        {"reader_brain", "speech", "image_generation"} <= set(evidence_payload["runtime_status"]),
+        "Evidence bundle runtime status should include reader brain, speech, and image generation status",
     )
     assert_true(
         evidence_payload["runtime_status"]["reader_brain"]["status"] in {"online", "fallback-ready"},
@@ -551,6 +763,10 @@ def verify_routes() -> None:
         evidence_payload["runtime_status"]["speech"]["status"] in {"online", "fallback-ready"},
         "Evidence bundle speech status should be online or fallback-ready",
     )
+    assert_true(
+        evidence_payload["runtime_status"]["image_generation"]["status"] in {"online", "fallback-ready"},
+        "Evidence bundle image generation status should be online or fallback-ready",
+    )
 
     runtime = client.get("/api/runtime-status")
     assert_true(runtime.status_code == 200, "Runtime status route should return 200")
@@ -558,15 +774,25 @@ def verify_routes() -> None:
     assert_true(runtime_payload["ok"], "Runtime status payload should be ok")
     assert_true("reader_brain" in runtime_payload, "Runtime status should include reader brain status")
     assert_true("speech" in runtime_payload, "Runtime status should include speech status")
+    assert_true("image_generation" in runtime_payload, "Runtime status should include image generation status")
     assert_true(
         runtime_payload["reader_brain"]["status"] in {"online", "fallback-ready"},
         "Reader brain status should be online or fallback-ready",
+    )
+    assert_true(
+        runtime_payload["image_generation"]["status"] in {"online", "fallback-ready"},
+        "Image generation status should be online or fallback-ready",
+    )
+    assert_true(
+        runtime_payload["image_generation"]["model"] == app.MODEL_MANIFEST["image_generation"]["id"],
+        "Image generation status should reference the Klein model",
     )
 
     image_descriptions = client.get("/api/image-descriptions")
     assert_true(image_descriptions.status_code == 200, "Image descriptions route should return 200")
     image_payload = image_descriptions.json()
-    assert_true(image_payload["model"] == "OpenBMB MiniCPM-V-2", "Image route should document MiniCPM-V model")
+    assert_true(image_payload["model"] == app.MODEL_MANIFEST["vision"]["id"], "Image route should document MiniCPM-V model")
+    assert_true(image_payload["runtime"] == "fallback", "Image route should use fallback runtime without MiniCPM config")
     assert_true(
         {item["id"] for item in image_payload["descriptions"]} == {"desk-reader", "model-map"},
         "Image route should describe all visible article images",
@@ -580,12 +806,24 @@ def verify_routes() -> None:
         "Image route should label bundled image fallback status",
     )
 
+    # Verify generate-image endpoint returns fallback when Modal is not configured
+    gen_image = client.post("/api/generate-image", json={"prompt": "test thumbnail", "seed": 7})
+    assert_true(gen_image.status_code == 200, "Generate image route should return 200")
+    gen_image_payload = gen_image.json()
+    assert_true(gen_image_payload["ok"], "Generate image payload should be ok")
+    assert_true(gen_image_payload["model"] == app.MODEL_MANIFEST["image_generation"]["id"], "Generate image should report Klein model")
+    assert_true(gen_image_payload["runtime"] == "fallback", "Generate image without Modal should report fallback")
+    assert_true(isinstance(gen_image_payload["elapsed_ms"], int), "Generate image should include elapsed_ms")
+
 
 def main() -> None:
     py_compile.compile(str(ROOT / "app.py"), doraise=True)
+    py_compile.compile(str(ROOT / "modal_workers" / "klein_image.py"), doraise=True)
     verify_static_assets()
     verify_space_metadata()
     verify_core_fallbacks()
+    verify_modal_klein_integration()
+    verify_minicpm_vision_integration()
     verify_output_retention()
     verify_routes()
     print("Tiny Narrator verification passed.")
