@@ -477,6 +477,7 @@ def verify_modal_klein_integration() -> None:
     reader_worker_source = reader_worker_path.read_text(encoding="utf-8")
     assert_true("modal.web_server" in reader_worker_source, "Reader-brain worker should expose llama-server through Modal web_server")
     assert_true("ghcr.io/ggml-org/llama.cpp:server-cuda12" in reader_worker_source, "Reader-brain worker should use the prebuilt llama.cpp CUDA server image")
+    assert_true("ENTRYPOINT []" in reader_worker_source, "Reader-brain worker should clear the prebuilt image entrypoint for Modal's Python runner")
     assert_true("GGML_CUDA=ON" not in reader_worker_source, "Reader-brain worker should not compile llama.cpp during Modal builds")
     assert_true("cmake --build" not in reader_worker_source, "Reader-brain worker should avoid slow CMake builds on Modal")
     assert_true("NVIDIA-Nemotron-3-Nano-4B-GGUF:Q4_K_M" in reader_worker_source, "Reader-brain worker should serve the Nemotron GGUF")

@@ -36,6 +36,7 @@ reader_brain_image = (
         "ghcr.io/ggml-org/llama.cpp:server-cuda12",
         add_python="3.12",
     )
+    .dockerfile_commands("ENTRYPOINT []")
     .env(
         {
             "HF_HOME": f"{CACHE_DIR}/huggingface",
