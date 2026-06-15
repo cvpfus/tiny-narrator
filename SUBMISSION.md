@@ -55,7 +55,7 @@ The accessibility audit also documents reader-mode details that matter during ju
 
 The image receipts distinguish live Modal Klein inference from bundled fallback assets. When `KLEIN_MODAL_ENDPOINT` is configured and reachable, generated thumbnails use real `black-forest-labs/FLUX.2-klein-4B` inference through Modal. When the worker is unavailable, bundled SVG assets are used with explicit fallback runtime metadata.
 
-Image descriptions use `openbmb/MiniCPM-V-4.6` through an OpenAI-compatible `/v1/chat/completions` endpoint when `MINICPM_VISION_BASE_URL` and `MINICPM_VISION_API_KEY` are configured. Without that endpoint, cached deterministic alt text keeps screen-reader mode stable.
+Image descriptions use `openbmb/MiniCPM-V-4.6` through an OpenAI-compatible `/v1/chat/completions` endpoint when `MINICPM_VISION_BASE_URL` and `MINICPM_VISION_API_KEY` are configured. The same endpoint is also the first reader-brain fallback when llama.cpp is unavailable, before the app falls back to deterministic narration. Without MiniCPM, cached deterministic alt text keeps screen-reader mode stable.
 
 The submission-readiness panel and API give judges a compact checklist for the whole build, so the live demo can move from individual receipts to an overall readiness view.
 
@@ -63,4 +63,4 @@ The submission-readiness panel and API give judges a compact checklist for the w
 
 ## Reliability notes
 
-The demo remains navigable when local models are unavailable. The reader brain falls back to deterministic narration, generated images start with meaningful HTML alt text, image descriptions fall back to cached alt text, speech falls back to browser speech plus transcript, and image generation falls back to bundled article assets when the Modal Klein worker is not configured or unreachable. Fallback states are labeled instead of hidden.
+The demo remains navigable when local models are unavailable. The reader brain falls back from llama.cpp to MiniCPM-V-4.6 when configured, then to deterministic narration. Generated images start with meaningful HTML alt text, image descriptions fall back to cached alt text, speech falls back to browser speech plus transcript, and image generation falls back to bundled article assets when the Modal Klein worker is not configured or unreachable. Fallback states are labeled instead of hidden.

@@ -203,21 +203,20 @@ def verify_space_metadata() -> None:
     requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8").splitlines()
     license_text = (ROOT / "LICENSE").read_text(encoding="utf-8")
 
-    sdk_version = front_matter_value(readme, "sdk_version")
-    app_file = front_matter_value(readme, "app_file")
     sdk = front_matter_value(readme, "sdk")
+    app_port = front_matter_value(readme, "app_port")
     emoji = front_matter_value(readme, "emoji")
     title = front_matter_value(readme, "title")
     license_id = front_matter_value(readme, "license")
 
     assert_true(title == "Tiny Narrator", "Space metadata should name the app")
-    assert_true(sdk == "gradio", "Space metadata should declare the Gradio SDK")
-    assert_true(app_file == "app.py", "Space metadata should launch app.py")
+    assert_true(sdk == "docker", "Space metadata should declare the Docker SDK")
+    assert_true(app_port == "7860", "Docker Space metadata should expose app_port 7860")
     assert_true(emoji and "ð" not in emoji, "Space metadata emoji should be valid UTF-8")
     assert_true(license_id == "apache-2.0", "Space metadata should declare the Apache-2.0 license")
     assert_true("Apache License" in license_text, "Repository should include the Apache license text")
     assert_true("Version 2.0" in license_text, "Repository license should match Space metadata")
-    assert_true(f"gradio=={sdk_version}" in requirements, "requirements.txt should pin Gradio to sdk_version")
+    assert_true(any(line.startswith("gradio==") for line in requirements), "requirements.txt should pin Gradio")
     for package in ["pydantic", "kokoro", "soundfile", "python-dotenv"]:
         assert_true(
             any(

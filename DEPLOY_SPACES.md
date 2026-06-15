@@ -218,7 +218,7 @@ curl https://<YOUR_USERNAME>-tiny-narrator.hf.space/api/submission-readiness
 
 `/api/runtime-status` should show:
 
-- `reader_brain`: `online` when Modal llama.cpp is reachable, `fallback-ready` otherwise
+- `reader_brain`: `online` when Modal llama.cpp is reachable, `fallback-ready` otherwise; configured MiniCPM-V can still act as the first text fallback before deterministic narration
 - `speech`: Kokoro or fallback speech path
 - `vision`: MiniCPM online or fallback-ready
 - `image_generation`: Modal Klein online or fallback-ready
@@ -274,6 +274,7 @@ Hugging Face Space (Docker CPU)
         +--> Modal Klein image worker (optional)
         |
         +--> MiniCPM-V-4.6 OpenAI-compatible endpoint (optional)
+             image descriptions and reader-brain text fallback
 ```
 
 ---
@@ -291,6 +292,7 @@ Hugging Face Space (Docker CPU)
 | Reader brain base URL | `https://<modal-url>/v1` |
 | Image generation | Modal Klein worker or SVG fallback |
 | Image descriptions | MiniCPM-V endpoint or cached fallback |
+| Reader-brain fallback | MiniCPM-V chat endpoint, then deterministic narration |
 
 ---
 

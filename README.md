@@ -3,9 +3,8 @@ title: Tiny Narrator
 emoji: 🔊
 colorFrom: teal
 colorTo: yellow
-sdk: gradio
-sdk_version: 6.16.0
-app_file: app.py
+sdk: docker
+app_port: 7860
 pinned: false
 license: apache-2.0
 ---
@@ -168,7 +167,7 @@ The frontend builds a reading queue from semantic article nodes. When screen-rea
 - `R` repeats the current item.
 - `Esc` stops the current audio.
 
-Each readable node is sent to the reader brain for concise narration, then Kokoro generates speech. If a model is unavailable, the app uses deterministic fallbacks so the demo remains navigable.
+Paragraph and heading nodes are spoken as raw article text for speed. Image nodes are described by MiniCPM-V-4.6 when configured, then the reader-brain path turns the result into concise narration; summaries and generated article drafting use the same reader-brain path. When reader-brain is needed, llama.cpp is primary, MiniCPM-V-4.6 is the first fallback when configured, and deterministic narration is the final fallback. Kokoro then generates speech.
 
 The session panel stays reader-first: it shows current reader state, live narration, transcript controls, latency, and the tiny-model stack. The semantic reader queue remains internal to playback and keyboard navigation.
 
@@ -180,7 +179,7 @@ Reader buttons expose `aria-keyshortcuts`, and the Repeat and Stop shortcuts are
 
 The session panel keeps a transcript of recent narration with reader position, runtime, latency, copy, and clear controls, making the spoken path inspectable during demos and useful for the Field Notes write-up. Copy actions report when browser clipboard access is unavailable, so the visible transcript and commands remain inspectable.
 
-Images start with meaningful fallback `alt` text in the HTML. Image descriptions are then preloaded into a local cache and written into the page's real `img alt` attributes. When the MiniCPM-V-4.6 endpoint is unavailable, deterministic alt-text fallbacks keep the screen-reader path usable.
+Images start with meaningful fallback `alt` text in the HTML. Image descriptions are then preloaded into a local cache and written into the page's real `img alt` attributes. When the MiniCPM-V-4.6 endpoint is unavailable, deterministic alt-text fallbacks keep the screen-reader path usable. Image narration always starts with "Image description." so users can distinguish generated image descriptions from article text.
 
 `/api/image-descriptions` exposes image receipts so judges can inspect the prompt, seed, planned <=4B image model, and fallback status behind each bundled article illustration without lengthening the reader sidebar.
 
@@ -202,7 +201,7 @@ The sidebar model stack reads `/api/model-budget` so judges can see each role's 
 
 `/api/evidence-bundle` returns the core judge receipts as formatted JSON for quick review or submission notes.
 
-`/api/runtime-setup` summarizes each model path's runtime, setup command, and fallback, keeping the live demo honest about what is online and what is deterministic.
+`/api/runtime-setup` summarizes each model path's runtime, setup command, and fallback chain, keeping the live demo honest about what is online, what can fall back to MiniCPM-V-4.6, and what is deterministic.
 
 `/api/runtime-status` performs a short readiness check for llama.cpp and local speech dependencies, then reports which fallback paths are ready for a live demo.
 
