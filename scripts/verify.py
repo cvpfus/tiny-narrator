@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import py_compile
 import sys
+import urllib.error
 import wave
 from pathlib import Path
 from unittest.mock import patch, MagicMock
@@ -23,6 +24,9 @@ def assert_true(condition: bool, message: str) -> None:
 def verify_static_assets() -> None:
     required = [
         ROOT / "LICENSE",
+        ROOT / "DEPLOY_SPACES.md",
+        ROOT / "Dockerfile",
+        ROOT / "start.sh",
         ROOT / "SUBMISSION.md",
         ROOT / "static" / "index.html",
         ROOT / "static" / "generate.html",
@@ -40,6 +44,17 @@ def verify_static_assets() -> None:
     generate_js = (ROOT / "static" / "generate.js").read_text(encoding="utf-8")
     index_html = (ROOT / "static" / "index.html").read_text(encoding="utf-8")
     generate_html = (ROOT / "static" / "generate.html").read_text(encoding="utf-8")
+    deploy_spaces = (ROOT / "DEPLOY_SPACES.md").read_text(encoding="utf-8")
+    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+    start_script = (ROOT / "start.sh").read_text(encoding="utf-8")
+    assert_true("FROM python:3.12-slim" in dockerfile, "Spaces Dockerfile should use a free CPU Python base image")
+    assert_true("nvidia/cuda" not in dockerfile, "Spaces Dockerfile should not require paid HF GPU CUDA image")
+    assert_true("llama-server" not in start_script, "Spaces start script should not launch local llama.cpp")
+    assert_true("free CPU" in deploy_spaces, "Spaces deploy guide should describe free CPU deployment")
+    assert_true("modal_workers/reader_brain.py" in deploy_spaces, "Spaces deploy guide should document Modal reader-brain deployment")
+    assert_true("CPU Basic" in deploy_spaces, "Spaces deploy guide should recommend CPU Basic hardware")
+    assert_true("LLAMA_CPP_TOKEN" in deploy_spaces, "Spaces deploy guide should document reader-brain auth token")
+    assert_true("tiny-narrator-reader-brain-token" in deploy_spaces, "Spaces deploy guide should document the Modal reader token secret")
     assert_true('href="/" aria-current="page">Reader' in index_html, "Reader page should mark Reader route current")
     assert_true('href="/generate">Generate' in index_html, "Reader page should link to Generate route")
     assert_true('href="/">Reader' in generate_html, "Generate page should link back to Reader route")
@@ -52,6 +67,8 @@ def verify_static_assets() -> None:
     assert_true("/api/generate-article" in generate_js, "Generate frontend should call article generation API")
     assert_true("/api/reader-brain" in generate_js, "Generate frontend should call reader-brain narration API")
     assert_true("/api/speak" in generate_js, "Generate frontend should call speech API")
+    assert_true('node.type === "image"' in generate_js, "Generate reader should reserve reader-brain item narration for images")
+    assert_true('runtime: "raw text"' in generate_js, "Generate reader should speak text-only nodes without reader-brain")
     assert_true("refreshReaderNodes" in generate_js, "Generate frontend should build a generated article reader path")
     assert_true('data-reader-type="heading"' in generate_js, "Generated article sections should mark heading reader nodes")
     assert_true('data-reader-type="paragraph"' in generate_js, "Generated article sections should mark paragraph reader nodes")
@@ -102,6 +119,8 @@ def verify_static_assets() -> None:
     )
     assert_true("transcript-position" in app_js, "Transcript should render the narrated reader position")
     assert_true("readerItemStatus(node)" in app_js, "Narration transcript entries should include reader item position")
+    assert_true('node.type === "image"' in app_js, "Article reader should reserve reader-brain item narration for images")
+    assert_true('runtime: "raw text"' in app_js, "Article reader should speak text-only nodes without reader-brain")
     assert_true(
         "[${entry.type} / ${entry.position} / ${entry.runtime}]" in app_js,
         "Copied transcript should include type, position, and runtime",
@@ -258,6 +277,56 @@ def verify_core_fallbacks() -> None:
     assert_true(summary["ok"], "Reader-brain summary fallback did not return ok")
     assert_true(summary["narration"].startswith("Summary."), "Summary fallback should announce summary mode")
 
+    with patch.object(app, "LLAMA_CPP_BASE_URL", ""):
+        unconfigured_reader = app.reader_brain_core(
+            node_type="paragraph",
+            text="This paragraph should be narrated without a configured endpoint.",
+            position="item 1 of 1",
+            mode="narrate",
+        )
+        assert_true(unconfigured_reader["runtime"] == "fallback", "Unconfigured reader brain should use fallback")
+        assert_true(
+            "not configured" in unconfigured_reader["warning"],
+            "Unconfigured reader brain should explain the missing endpoint",
+        )
+
+        unconfigured_article = app.generate_article_core("accessible classroom tools")
+        assert_true(unconfigured_article["runtime"] == "fallback", "Unconfigured article generation should use fallback")
+        assert_true(
+            "not configured" in unconfigured_article["warning"],
+            "Unconfigured article generation should explain the missing endpoint",
+        )
+
+    empty_llama_response = MagicMock()
+    empty_llama_response.read.return_value = json.dumps({"choices": [{"message": {"content": ""}}]}).encode("utf-8")
+    empty_llama_response.__enter__ = lambda s: s
+    empty_llama_response.__exit__ = MagicMock(return_value=False)
+    with patch("urllib.request.urlopen", return_value=empty_llama_response):
+        empty_narration = app.reader_brain_core(
+            node_type="paragraph",
+            text="This paragraph still needs narration.",
+            position="item 2 of 3",
+            mode="narrate",
+        )
+        assert_true(empty_narration["runtime"] == "fallback", "Empty llama.cpp response should use fallback narration")
+        assert_true(empty_narration["narration"], "Empty llama.cpp response should not return empty narration")
+
+    reasoning_response = MagicMock()
+    reasoning_response.read.return_value = json.dumps(
+        {"choices": [{"message": {"content": "", "reasoning_content": "Heading. Live narration from llama.cpp."}}]}
+    ).encode("utf-8")
+    reasoning_response.__enter__ = lambda s: s
+    reasoning_response.__exit__ = MagicMock(return_value=False)
+    with patch("urllib.request.urlopen", return_value=reasoning_response):
+        reasoning_narration = app.reader_brain_core(
+            node_type="heading",
+            text="Live heading",
+            position="item 1 of 1",
+            mode="narrate",
+        )
+        assert_true(reasoning_narration["runtime"] == "llama.cpp", "Reader brain should use alternate llama.cpp message text fields")
+        assert_true("Live narration" in reasoning_narration["narration"], "Reader brain should extract reasoning_content when content is empty")
+
     description = app.describe_image_core("model-map", caption=None, prompt=None)
     assert_true(description["ok"], "Image description did not return ok")
     assert_true("small AI models" in description["alt_text"], "Image description fallback changed unexpectedly")
@@ -289,6 +358,10 @@ def verify_core_fallbacks() -> None:
         assert_true(wav.getframerate() == 24000, "Speech output should be 24 kHz")
         assert_true(wav.getnchannels() == 1, "Speech output should be mono")
 
+    empty_speech = app.speak_core("", voice="af_heart", speed=1.0)
+    assert_true(empty_speech["runtime"] == "fallback", "Empty speech input should use fast fallback")
+    assert_true("empty" in empty_speech["warning"].lower(), "Empty speech input should explain why Kokoro was skipped")
+
     generated = app.generate_image_core("Tiny accessibility article image.", seed=3)
     assert_true(generated["ok"], "Image generation placeholder should return ok")
     assert_true(isinstance(generated["elapsed_ms"], int), "Image generation should include elapsed_ms")
@@ -306,11 +379,14 @@ def verify_core_fallbacks() -> None:
     article = app.generate_article_core("tiny classroom robotics")
     assert_true(article["ok"], "Article generation should return ok")
     assert_true(article["model"] == app.MODEL_MANIFEST["reader_brain"]["id"], "Article generation should use reader-brain model")
-    assert_true(len(article["article"]["sections"]) == 3, "Article generation should return three sections")
+    assert_true(len(article["article"]["sections"]) == 5, "Article generation should return five sections")
     assert_true(
         article["thumbnail"]["generation_model"] == app.MODEL_MANIFEST["image_generation"]["id"],
         "Article generation should use the Klein image model for thumbnail receipt",
     )
+    assert_true("No words" in article["thumbnail"]["prompt"], "Article thumbnail prompt should forbid unreadable generated text")
+    assert_true("no user interface" in article["thumbnail"]["prompt"], "Article thumbnail prompt should avoid UI screenshots")
+    assert_true("one centered cohesive scene" in article["thumbnail"]["prompt"], "Article thumbnail prompt should avoid sparse disconnected layouts")
 
 
 def verify_modal_klein_integration() -> None:
@@ -387,12 +463,56 @@ def verify_modal_klein_integration() -> None:
     assert_true("modal.App" in worker_source, "Modal worker should create a Modal App")
     assert_true("modal.Volume" in worker_source, "Modal worker should use a Modal Volume")
     assert_true("FLUX.2-klein-4B" in worker_source, "Modal worker should reference the Klein model")
+    assert_true("Flux2KleinPipeline" in worker_source, "Modal worker should use the FLUX.2 Klein Diffusers pipeline")
     assert_true("modal.asgi_app" in worker_source, "Modal worker should expose one ASGI app")
     assert_true('@api.post("/generate")' in worker_source, "Modal worker should expose POST /generate")
     assert_true('@api.get("/health")' in worker_source, "Modal worker should expose GET /health")
     assert_true('@api.get("/media/{filename}")' in worker_source, "Modal worker should expose GET /media/{filename}")
     assert_true("404" in worker_source or "not found" in worker_source.lower(), "Modal worker should handle missing media with 404")
-    assert_true("reload" in worker_source, "Modal worker should reload volume before serving")
+    assert_true("reload.aio()" in worker_source, "Modal worker should reload volume with async API before serving missing media")
+    assert_true("path.read_bytes()" in worker_source, "Modal worker should avoid streaming open files from the volume")
+
+    reader_worker_path = ROOT / "modal_workers" / "reader_brain.py"
+    assert_true(reader_worker_path.exists(), "Modal reader-brain worker file should exist")
+    reader_worker_source = reader_worker_path.read_text(encoding="utf-8")
+    assert_true("modal.web_server" in reader_worker_source, "Reader-brain worker should expose llama-server through Modal web_server")
+    assert_true("nvidia/cuda:12.4.1-devel-ubuntu22.04" in reader_worker_source, "Reader-brain worker should use a CUDA build image")
+    assert_true("GGML_CUDA=ON" in reader_worker_source, "Reader-brain worker should compile llama.cpp with CUDA")
+    assert_true("NVIDIA-Nemotron-3-Nano-4B-GGUF:Q4_K_M" in reader_worker_source, "Reader-brain worker should serve the Nemotron GGUF")
+    assert_true('"--reasoning"' in reader_worker_source and '"off"' in reader_worker_source, "Reader-brain worker should disable reasoning mode")
+    assert_true('"--ctx-size"' in reader_worker_source and '"0"' in reader_worker_source, "Reader-brain worker should use model context size")
+    assert_true('"--n-gpu-layers"' in reader_worker_source and '"999"' in reader_worker_source, "Reader-brain worker should request full GPU offload")
+    assert_true("modal.Volume" in reader_worker_source, "Reader-brain worker should cache model downloads in a Modal volume")
+    assert_true("tiny-narrator-reader-brain-token" in reader_worker_source, "Reader-brain worker should use a fixed Modal token secret")
+    assert_true('"--api-key"' in reader_worker_source, "Reader-brain worker should pass an API key to llama-server when configured")
+    assert_true('display_command[key_index] = "***"' in reader_worker_source, "Reader-brain worker should redact API keys in logs")
+
+    # Test: reader-brain auth wiring sends bearer tokens when configured
+    model_response = MagicMock()
+    model_response.read.return_value = json.dumps({"data": [{"id": "narrator-brain"}]}).encode("utf-8")
+    model_response.__enter__ = lambda s: s
+    model_response.__exit__ = MagicMock(return_value=False)
+    with patch.object(app, "LLAMA_CPP_BASE_URL", "https://reader.example/v1"), patch.object(app, "LLAMA_CPP_TOKEN", "reader-secret"):
+        with patch("urllib.request.urlopen", return_value=model_response) as urlopen_mock:
+            app._runtime_status_core()
+            status_request = urlopen_mock.call_args.args[0]
+            assert_true(
+                status_request.headers.get("Authorization") == "Bearer reader-secret",
+                "Runtime status should send reader-brain Bearer token when LLAMA_CPP_TOKEN is configured",
+            )
+
+    chat_response = MagicMock()
+    chat_response.read.return_value = json.dumps({"choices": [{"message": {"content": "Heading. Token protected narration."}}]}).encode("utf-8")
+    chat_response.__enter__ = lambda s: s
+    chat_response.__exit__ = MagicMock(return_value=False)
+    with patch.object(app, "LLAMA_CPP_BASE_URL", "https://reader.example/v1"), patch.object(app, "LLAMA_CPP_TOKEN", "reader-secret"):
+        with patch("urllib.request.urlopen", return_value=chat_response) as urlopen_mock:
+            app.reader_brain_core("heading", "Token protected narration", "item 1 of 1", "narrate")
+            chat_request = urlopen_mock.call_args.args[0]
+            assert_true(
+                chat_request.headers.get("Authorization") == "Bearer reader-secret",
+                "Reader-brain requests should send Bearer token when LLAMA_CPP_TOKEN is configured",
+            )
 
     # Test: auth wiring — app sends bearer token when configured
     with patch.object(app, "KLEIN_MODAL_ENDPOINT", "https://example-modal.modal.run"), patch.object(app, "KLEIN_MODAL_TOKEN", "test-secret-token"):
@@ -421,6 +541,7 @@ def verify_modal_klein_integration() -> None:
     # Test: .env.example includes KLEIN_MODAL_TOKEN
     env_example = (ROOT / ".env.example").read_text(encoding="utf-8")
     assert_true("KLEIN_MODAL_TOKEN" in env_example, ".env.example should document KLEIN_MODAL_TOKEN")
+    assert_true("LLAMA_CPP_TOKEN" in env_example, ".env.example should document LLAMA_CPP_TOKEN")
 
     # Test: worker validates token
     assert_true("KLEIN_MODAL_TOKEN" in worker_source, "Modal worker should read KLEIN_MODAL_TOKEN")
@@ -444,6 +565,17 @@ def verify_modal_klein_integration() -> None:
         assert_true(
             image_step["env"]["KLEIN_MODAL_TOKEN"] == "(configured)",
             "Runtime setup should show token as configured without exposing the value",
+        )
+
+    with patch.object(app, "LLAMA_CPP_TOKEN", "reader-super-secret"):
+        setup = app.runtime_setup_core()
+        setup_json = json.dumps(setup)
+        assert_true("reader-super-secret" not in setup_json, "Runtime setup must never expose the reader token value")
+        reader_step = next(step for step in setup["steps"] if step["role"] == "reader_brain")
+        assert_true("LLAMA_CPP_TOKEN" in reader_step["env"], "Runtime setup should document LLAMA_CPP_TOKEN")
+        assert_true(
+            reader_step["env"]["LLAMA_CPP_TOKEN"] == "(configured)",
+            "Runtime setup should show reader token as configured without exposing the value",
         )
 
     # Test: runtime status includes Modal Klein path
@@ -553,6 +685,17 @@ def verify_minicpm_vision_integration() -> None:
                 status = app._vision_runtime_status()
                 assert_true(status["status"] == "online", "MiniCPM /models response should mark vision online")
                 assert_true("secret-key" not in json.dumps(status), "Vision runtime status should not expose API key")
+
+    ready_response = MagicMock()
+    ready_response.read.return_value = json.dumps({"choices": [{"message": {"content": "ready"}}]}).encode("utf-8")
+    ready_response.__enter__ = lambda s: s
+    ready_response.__exit__ = MagicMock(return_value=False)
+    with patch.object(app, "MINICPM_VISION_BASE_URL", "https://vision.example/v1"):
+        with patch.object(app, "MINICPM_VISION_API_KEY", "secret-key"):
+            with patch("urllib.request.urlopen", side_effect=[urllib.error.HTTPError("https://vision.example/v1/models", 404, "Not Found", {}, None), ready_response]):
+                status = app._vision_runtime_status()
+                assert_true(status["status"] == "online", "MiniCPM chat completions readiness should mark vision online when /models is unavailable")
+                assert_true("chat completions ready" in status.get("warning", ""), "Vision status should explain chat-completions readiness fallback")
 
     setup = app.runtime_setup_core()
     vision_step = next(step for step in setup["steps"] if step["role"] == "vision")
@@ -711,6 +854,14 @@ def verify_routes() -> None:
         "Runtime setup should include the llama.cpp launch command",
     )
     assert_true(
+        setup_payload["steps"][0]["modal_command"] == "modal deploy modal_workers/reader_brain.py",
+        "Runtime setup should include the Modal reader-brain deploy command",
+    )
+    assert_true(
+        "--reasoning off" in setup_payload["steps"][0]["command"],
+        "Runtime setup should document non-reasoning llama.cpp mode",
+    )
+    assert_true(
         setup_payload["app"]["env"]["PUBLIC_BASE_URL"] == app.PUBLIC_BASE_URL,
         "Runtime setup should expose the public command base URL",
     )
@@ -793,7 +944,7 @@ def verify_routes() -> None:
     assert_true(article_sample.status_code == 200, "Article generation route should return 200")
     article_sample_payload = article_sample.json()
     assert_true(article_sample_payload["ok"], "Article generation payload should return ok")
-    assert_true(len(article_sample_payload["article"]["sections"]) == 3, "Article generation payload should include three sections")
+    assert_true(len(article_sample_payload["article"]["sections"]) == 5, "Article generation payload should include five sections")
     assert_true(
         article_sample_payload["thumbnail"]["generation_model"] == app.MODEL_MANIFEST["image_generation"]["id"],
         "Article generation payload should include Klein thumbnail provenance",
@@ -928,6 +1079,7 @@ def verify_routes() -> None:
 def main() -> None:
     py_compile.compile(str(ROOT / "app.py"), doraise=True)
     py_compile.compile(str(ROOT / "modal_workers" / "klein_image.py"), doraise=True)
+    py_compile.compile(str(ROOT / "modal_workers" / "reader_brain.py"), doraise=True)
     verify_static_assets()
     verify_space_metadata()
     verify_dotenv_wiring()

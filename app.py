@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import sys
 import time
 import urllib.error
 import urllib.request
@@ -34,13 +35,41 @@ def _int_env(name: str, default: int) -> int:
         return default
 
 
+def _bool_env(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _runtime_log(message: str) -> None:
+    print(f"[tiny-narrator] {message}", file=sys.stderr, flush=True)
+
+
+def _http_exception_detail(exc: BaseException) -> str:
+    if isinstance(exc, urllib.error.HTTPError):
+        try:
+            body = exc.read().decode("utf-8", errors="replace")
+        except Exception:
+            body = ""
+        body = _compact_text(body, 400) if body else ""
+        return f"HTTPError status={exc.code} reason={exc.reason} body={body}"
+    if isinstance(exc, urllib.error.URLError):
+        return f"URLError reason={exc.reason}"
+    return f"{exc.__class__.__name__}: {exc}"
+
+
 LLAMA_CPP_BASE_URL = os.getenv("LLAMA_CPP_BASE_URL", "http://localhost:8080/v1")
 LLAMA_CPP_MODEL = os.getenv("LLAMA_CPP_MODEL", "narrator-brain")
+LLAMA_CPP_TOKEN = os.getenv("LLAMA_CPP_TOKEN", "")
+LLAMA_CPP_TIMEOUT_SECONDS = _int_env("LLAMA_CPP_TIMEOUT_SECONDS", 90)
 GRADIO_SERVER_NAME = os.getenv("GRADIO_SERVER_NAME", "0.0.0.0")
 GRADIO_SERVER_PORT = int(os.getenv("PORT", os.getenv("GRADIO_SERVER_PORT", "7860")))
+GRADIO_SHARE = _bool_env("GRADIO_SHARE")
 PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", f"http://localhost:{GRADIO_SERVER_PORT}").rstrip("/")
 KLEIN_MODAL_ENDPOINT = os.getenv("KLEIN_MODAL_ENDPOINT", "").rstrip("/")
 KLEIN_MODAL_TOKEN = os.getenv("KLEIN_MODAL_TOKEN", "")
+KLEIN_MODAL_HEALTH_TIMEOUT_SECONDS = _int_env("KLEIN_MODAL_HEALTH_TIMEOUT_SECONDS", 30)
 KLEIN_MODAL_TIMEOUT_SECONDS = _int_env("KLEIN_MODAL_TIMEOUT_SECONDS", 120)
 MINICPM_VISION_BASE_URL = os.getenv("MINICPM_VISION_BASE_URL", "").rstrip("/")
 MINICPM_VISION_API_KEY = os.getenv("MINICPM_VISION_API_KEY", "")
@@ -176,6 +205,7 @@ def runtime_setup_core() -> dict[str, Any]:
             "env": {
                 "GRADIO_SERVER_NAME": GRADIO_SERVER_NAME,
                 "GRADIO_SERVER_PORT": str(GRADIO_SERVER_PORT),
+                "GRADIO_SHARE": str(GRADIO_SHARE).lower(),
                 "PUBLIC_BASE_URL": PUBLIC_BASE_URL,
             },
         },
@@ -187,9 +217,16 @@ def runtime_setup_core() -> dict[str, Any]:
                 "runtime": "llama.cpp",
                 "command": (
                     "llama-server -hf nvidia/NVIDIA-Nemotron-3-Nano-4B-GGUF:Q4_K_M "
-                    "--alias narrator-brain --port 8080 --host 0.0.0.0"
+                    "--alias narrator-brain --port 8080 --host 0.0.0.0 "
+                    "--ctx-size 0 --reasoning off --n-gpu-layers 999"
                 ),
-                "env": {"LLAMA_CPP_BASE_URL": LLAMA_CPP_BASE_URL, "LLAMA_CPP_MODEL": LLAMA_CPP_MODEL},
+                "modal_command": "modal deploy modal_workers/reader_brain.py",
+                "env": {
+                    "LLAMA_CPP_BASE_URL": LLAMA_CPP_BASE_URL,
+                    "LLAMA_CPP_MODEL": LLAMA_CPP_MODEL,
+                    "LLAMA_CPP_TOKEN": "(configured)" if LLAMA_CPP_TOKEN else "(not set)",
+                    "LLAMA_CPP_TIMEOUT_SECONDS": str(LLAMA_CPP_TIMEOUT_SECONDS),
+                },
                 "fallback": "rule-based local narration",
             },
             {
@@ -224,6 +261,7 @@ def runtime_setup_core() -> dict[str, Any]:
                 "env": {
                     "KLEIN_MODAL_ENDPOINT": KLEIN_MODAL_ENDPOINT or "(set to Modal worker URL)",
                     "KLEIN_MODAL_TOKEN": "(configured)" if KLEIN_MODAL_TOKEN else "(not set)",
+                    "KLEIN_MODAL_HEALTH_TIMEOUT_SECONDS": str(KLEIN_MODAL_HEALTH_TIMEOUT_SECONDS),
                     "KLEIN_MODAL_TIMEOUT_SECONDS": str(KLEIN_MODAL_TIMEOUT_SECONDS),
                 },
                 "fallback": "bundled generated article assets",
@@ -589,68 +627,113 @@ def _validate_modal_klein_health(payload: dict[str, Any]) -> None:
         raise ValueError("health check returned unexpected runtime")
 
 
+def _modal_klein_base_url() -> str:
+    normalized = KLEIN_MODAL_ENDPOINT.rstrip("/")
+    for suffix in ("/generate", "/health"):
+        if normalized.endswith(suffix):
+            return normalized[: -len(suffix)]
+    return normalized
+
+
+def _llama_cpp_headers(extra: dict[str, str] | None = None) -> dict[str, str]:
+    headers = dict(extra or {})
+    if LLAMA_CPP_TOKEN:
+        headers["Authorization"] = f"Bearer {LLAMA_CPP_TOKEN}"
+    return headers
+
+
 def _runtime_status_core() -> dict[str, Any]:
     start = time.perf_counter()
     llama_start = time.perf_counter()
     llama_status: dict[str, Any]
-    try:
-        request = urllib.request.Request(f"{LLAMA_CPP_BASE_URL}/models", method="GET")
-        with urllib.request.urlopen(request, timeout=1.5) as response:
-            payload = json.loads(response.read().decode("utf-8"))
-        model_ids = [item.get("id", "") for item in payload.get("data", []) if isinstance(item, dict)]
-        llama_status = {
-            "available": True,
-            "status": "online",
-            "base_url": LLAMA_CPP_BASE_URL,
-            "model": LLAMA_CPP_MODEL,
-            "models": model_ids,
-            "elapsed_ms": _elapsed_ms(llama_start),
-        }
-    except (OSError, urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+    if not LLAMA_CPP_BASE_URL:
         llama_status = {
             "available": False,
             "status": "fallback-ready",
             "base_url": LLAMA_CPP_BASE_URL,
             "model": LLAMA_CPP_MODEL,
             "fallback": "rule-based local narration",
-            "warning": exc.__class__.__name__,
+            "warning": "LLAMA_CPP_BASE_URL is not configured",
             "elapsed_ms": _elapsed_ms(llama_start),
         }
+    else:
+        try:
+            request = urllib.request.Request(
+                f"{LLAMA_CPP_BASE_URL}/models",
+                headers=_llama_cpp_headers(),
+                method="GET",
+            )
+            with urllib.request.urlopen(request, timeout=1.5) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            model_ids = [item.get("id", "") for item in payload.get("data", []) if isinstance(item, dict)]
+            llama_status = {
+                "available": True,
+                "status": "online",
+                "base_url": LLAMA_CPP_BASE_URL,
+                "model": LLAMA_CPP_MODEL,
+                "models": model_ids,
+                "elapsed_ms": _elapsed_ms(llama_start),
+            }
+        except (OSError, urllib.error.URLError, TimeoutError, ValueError, json.JSONDecodeError) as exc:
+            llama_status = {
+                "available": False,
+                "status": "fallback-ready",
+                "base_url": LLAMA_CPP_BASE_URL,
+                "model": LLAMA_CPP_MODEL,
+                "fallback": "rule-based local narration",
+                "warning": exc.__class__.__name__,
+                "elapsed_ms": _elapsed_ms(llama_start),
+            }
 
     kokoro_available = importlib.util.find_spec("kokoro") is not None
     soundfile_available = importlib.util.find_spec("soundfile") is not None
 
     klein_status: dict[str, Any]
     if KLEIN_MODAL_ENDPOINT:
+        endpoint = _modal_klein_base_url()
+        health_url = f"{endpoint}/health"
         try:
             health_headers: dict[str, str] = {}
             if KLEIN_MODAL_TOKEN:
                 health_headers["Authorization"] = f"Bearer {KLEIN_MODAL_TOKEN}"
+            _runtime_log(
+                "Modal Klein health check "
+                f"url={health_url} token={'configured' if KLEIN_MODAL_TOKEN else 'not-set'} "
+                f"timeout={KLEIN_MODAL_HEALTH_TIMEOUT_SECONDS}s"
+            )
             request = urllib.request.Request(
-                f"{KLEIN_MODAL_ENDPOINT}/health", method="GET",
+                health_url, method="GET",
                 headers=health_headers,
             )
-            with urllib.request.urlopen(request, timeout=5) as response:
+            with urllib.request.urlopen(request, timeout=KLEIN_MODAL_HEALTH_TIMEOUT_SECONDS) as response:
                 payload = json.loads(response.read().decode("utf-8"))
+            _runtime_log(
+                "Modal Klein health response "
+                f"model={payload.get('model')} runtime={payload.get('runtime')} ok={payload.get('ok')}"
+            )
             _validate_modal_klein_health(payload)
             klein_status = {
                 "available": True,
                 "status": "online",
                 "model": MODEL_MANIFEST["image_generation"]["id"],
-                "endpoint": KLEIN_MODAL_ENDPOINT,
+                "endpoint": endpoint,
                 "elapsed_ms": _elapsed_ms(start),
             }
         except (OSError, urllib.error.URLError, TimeoutError, ValueError, json.JSONDecodeError) as exc:
+            detail = _http_exception_detail(exc)
+            _runtime_log(f"Modal Klein health failed url={health_url} error={detail}")
             klein_status = {
                 "available": False,
                 "status": "fallback-ready",
                 "model": MODEL_MANIFEST["image_generation"]["id"],
-                "endpoint": KLEIN_MODAL_ENDPOINT,
+                "endpoint": endpoint,
+                "health_url": health_url,
                 "fallback": "bundled generated article assets",
-                "warning": exc.__class__.__name__,
+                "warning": detail,
                 "elapsed_ms": _elapsed_ms(start),
             }
     else:
+        _runtime_log("Modal Klein endpoint is not configured; using image fallback")
         klein_status = {
             "available": False,
             "status": "fallback-ready",
@@ -702,21 +785,38 @@ def _fallback_article(topic: str) -> dict[str, Any]:
                 "heading": f"Why {clean_topic} matters",
                 "body": (
                     f"{clean_topic.capitalize()} is easier to understand when the page explains the main idea first, "
-                    "then moves through examples in a predictable order."
+                    "then moves through examples in a predictable order. A longer article gives the reader enough "
+                    "context to pause, repeat, and compare sections without feeling rushed."
                 ),
             },
             {
                 "heading": "How a tiny narrator helps",
                 "body": (
                     "A small reader model can turn each heading, paragraph, and image caption into concise narration "
-                    "without turning the article into a chatbot."
+                    "without turning the article into a chatbot. It keeps the experience close to the article, so "
+                    "the user stays oriented while moving through the page."
+                ),
+            },
+            {
+                "heading": "What image descriptions add",
+                "body": (
+                    "Images often carry examples, diagrams, or emotional context. A visual descriptor gives those "
+                    "details a spoken form, helping readers understand why an illustration belongs with the surrounding text."
+                ),
+            },
+            {
+                "heading": "Designing for repeated listening",
+                "body": (
+                    "Reader controls should make it easy to move backward, skip to the next heading, replay a sentence, "
+                    "or stop speech completely. Those small controls matter when someone is studying, teaching, or checking details."
                 ),
             },
             {
                 "heading": "What to try next",
                 "body": (
                     "Use the reader controls to move by heading or image, then compare the transcript with the article "
-                    "to check whether the generated structure is easy to follow."
+                    "to check whether the generated structure is easy to follow. If a section sounds confusing, rewrite it "
+                    "with simpler language and a clearer heading."
                 ),
             },
         ],
@@ -725,16 +825,84 @@ def _fallback_article(topic: str) -> dict[str, Any]:
 
 def _article_generation_prompt(topic: str) -> str:
     return (
-        "Write a short accessible article for Tiny Narrator.\n"
+        "Write a complete accessible article for Tiny Narrator.\n"
         f"Topic: {topic}\n\n"
         "Return strict JSON with keys title, dek, and sections. "
-        "sections must contain exactly three objects with heading and body. "
-        "Keep every body under 45 words. Do not include markdown."
+        "sections must contain exactly five objects with heading and body. "
+        "Each body should be 45 to 70 words, with concrete examples and practical detail. "
+        "Use clear plain language suitable for screen-reader narration. Do not include markdown."
+    )
+
+
+def _fallback_narration(node_type: str, text: str, mode: str) -> str:
+    prefix = {
+        "heading": "Heading. ",
+        "image": "Image. ",
+        "button": "Control. ",
+        "quote": "Quote. ",
+    }.get(node_type, "")
+    if mode == "summarize":
+        prefix = "Summary. "
+    fallback_text = _compact_text(text) or "No readable text is available for this item."
+    return f"{prefix}{fallback_text}".strip()
+
+
+def _chat_message_text(payload: dict[str, Any]) -> str:
+    choices = payload.get("choices", [])
+    if not choices or not isinstance(choices[0], dict):
+        return ""
+    choice = choices[0]
+    message = choice.get("message")
+    if isinstance(message, dict):
+        for key in ("content", "reasoning_content", "reasoning", "text"):
+            value = message.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+            if isinstance(value, list):
+                parts = []
+                for item in value:
+                    if isinstance(item, dict):
+                        part = item.get("text") or item.get("content")
+                        if isinstance(part, str):
+                            parts.append(part)
+                    elif isinstance(item, str):
+                        parts.append(item)
+                combined = " ".join(parts).strip()
+                if combined:
+                    return combined
+    text = choice.get("text")
+    if isinstance(text, str) and text.strip():
+        return text.strip()
+    return ""
+
+
+def _chat_response_debug(payload: dict[str, Any]) -> str:
+    choices = payload.get("choices", [])
+    if not choices or not isinstance(choices[0], dict):
+        return f"top_keys={list(payload)[:8]} choices=missing"
+    choice = choices[0]
+    message = choice.get("message")
+    message_keys = list(message)[:8] if isinstance(message, dict) else []
+    return (
+        f"top_keys={list(payload)[:8]} "
+        f"choice_keys={list(choice)[:8]} "
+        f"message_keys={message_keys} "
+        f"finish_reason={choice.get('finish_reason')}"
     )
 
 
 def reader_brain_core(node_type: str, text: str, position: str | None, mode: str) -> dict[str, Any]:
     start = time.perf_counter()
+    if not LLAMA_CPP_BASE_URL:
+        return {
+            "ok": True,
+            "runtime": "fallback",
+            "model": "rule-based local fallback",
+            "warning": "llama.cpp unavailable: LLAMA_CPP_BASE_URL is not configured",
+            "narration": _fallback_narration(node_type, text, mode),
+            "elapsed_ms": _elapsed_ms(start),
+        }
+
     if mode == "summarize":
         prompt = (
             "Summarize this article section for screen-reader navigation.\n"
@@ -742,7 +910,8 @@ def reader_brain_core(node_type: str, text: str, position: str | None, mode: str
             f"Position: {position or 'unknown'}\n"
             f"Content: {text}\n\n"
             "Rules: start with 'Summary.', use one or two short sentences, explain what the "
-            "reader can learn in this section, and never mention implementation details."
+            "reader can learn in this section, and never mention implementation details. "
+            "Return only the final spoken narration. Do not explain your reasoning."
         )
     else:
         prompt = (
@@ -752,7 +921,8 @@ def reader_brain_core(node_type: str, text: str, position: str | None, mode: str
             f"Position: {position or 'unknown'}\n"
             f"Content: {text}\n\n"
             "Rules: announce the node type only when it helps orientation, keep prose short, "
-            "and never mention implementation details."
+            "and never mention implementation details. Return only the final spoken narration. "
+            "Do not explain your reasoning."
         )
 
     try:
@@ -764,24 +934,42 @@ def reader_brain_core(node_type: str, text: str, position: str | None, mode: str
                         "role": "system",
                         "content": (
                             "You are Tiny Narrator's accessibility layer. "
-                            "Produce clear screen-reader narration for article content."
+                            "Reasoning mode: off. Do not generate a reasoning trace. "
+                            "Do not think step by step. "
+                            "Produce clear screen-reader narration for article content. "
+                            "Return only the exact text to speak. Do not include analysis, alternatives, "
+                            "markdown, labels, or explanations."
                         ),
                     },
                     {"role": "user", "content": prompt},
                 ],
                 "temperature": 0.2,
-                "max_tokens": 180,
+                "top_p": 0.9,
+                "stream": False,
+                "max_tokens": 80,
             }
         ).encode("utf-8")
         request = urllib.request.Request(
             f"{LLAMA_CPP_BASE_URL}/chat/completions",
             data=body,
-            headers={"Content-Type": "application/json"},
+            headers=_llama_cpp_headers({"Content-Type": "application/json"}),
             method="POST",
         )
-        with urllib.request.urlopen(request, timeout=45) as response:
+        with urllib.request.urlopen(request, timeout=LLAMA_CPP_TIMEOUT_SECONDS) as response:
             payload = json.loads(response.read().decode("utf-8"))
-        narration = payload["choices"][0]["message"]["content"].strip()
+        narration = _compact_text(_chat_message_text(payload), 220)
+        if not narration:
+            fallback = _fallback_narration(node_type, text, mode)
+            detail = _chat_response_debug(payload)
+            _runtime_log(f"llama.cpp returned empty narration; response_shape={detail}")
+            return {
+                "ok": True,
+                "runtime": "fallback",
+                "model": "rule-based local fallback",
+                "warning": f"llama.cpp returned empty narration ({detail})",
+                "narration": fallback,
+                "elapsed_ms": _elapsed_ms(start),
+            }
         return {
             "ok": True,
             "runtime": "llama.cpp",
@@ -789,21 +977,13 @@ def reader_brain_core(node_type: str, text: str, position: str | None, mode: str
             "narration": narration,
             "elapsed_ms": _elapsed_ms(start),
         }
-    except (OSError, urllib.error.URLError, KeyError, json.JSONDecodeError) as exc:
-        prefix = {
-            "heading": "Heading. ",
-            "image": "Image. ",
-            "button": "Control. ",
-            "quote": "Quote. ",
-        }.get(node_type, "")
-        if mode == "summarize":
-            prefix = "Summary. "
+    except (OSError, urllib.error.URLError, TimeoutError, ValueError, KeyError, json.JSONDecodeError) as exc:
         return {
             "ok": True,
             "runtime": "fallback",
             "model": "rule-based local fallback",
             "warning": f"llama.cpp unavailable: {exc.__class__.__name__}",
-            "narration": f"{prefix}{_compact_text(text)}".strip(),
+            "narration": _fallback_narration(node_type, text, mode),
             "elapsed_ms": _elapsed_ms(start),
         }
 
@@ -910,6 +1090,32 @@ def _call_minicpm_vision(image_url: str, caption: str | None, prompt: str | None
     }
 
 
+def _check_minicpm_chat_ready() -> dict[str, Any]:
+    body = json.dumps(
+        {
+            "model": MINICPM_VISION_MODEL,
+            "messages": [{"role": "user", "content": "Reply with ready."}],
+            "temperature": 0,
+            "max_tokens": 8,
+        }
+    ).encode("utf-8")
+    request = urllib.request.Request(
+        _openai_compatible_url(MINICPM_VISION_BASE_URL, "chat/completions"),
+        data=body,
+        headers={
+            "Authorization": f"Bearer {MINICPM_VISION_API_KEY}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=min(MINICPM_VISION_TIMEOUT_SECONDS, 10)) as response:
+        payload = json.loads(response.read().decode("utf-8"))
+    content = payload["choices"][0]["message"]["content"]
+    if not isinstance(content, str) or not content.strip():
+        raise ValueError("MiniCPM readiness response did not include text content")
+    return payload
+
+
 def _vision_runtime_status() -> dict[str, Any]:
     if not MINICPM_VISION_BASE_URL or not MINICPM_VISION_API_KEY:
         return {
@@ -920,6 +1126,8 @@ def _vision_runtime_status() -> dict[str, Any]:
             "fallback": "cached deterministic alt text",
         }
     start = time.perf_counter()
+    model_ids: list[str] = []
+    models_warning: str | None = None
     try:
         request = urllib.request.Request(
             _openai_compatible_url(MINICPM_VISION_BASE_URL, "models"),
@@ -934,7 +1142,8 @@ def _vision_runtime_status() -> dict[str, Any]:
             if isinstance(item, dict)
         ]
         if model_ids and MINICPM_VISION_MODEL not in model_ids:
-            raise ValueError("MiniCPM vision model was not listed by /models")
+            models_warning = "MiniCPM vision model was not listed by /models"
+            _check_minicpm_chat_ready()
         return {
             "available": True,
             "status": "online",
@@ -942,9 +1151,25 @@ def _vision_runtime_status() -> dict[str, Any]:
             "configured": True,
             "base_url": MINICPM_VISION_BASE_URL,
             "models": model_ids,
+            "warning": models_warning,
             "elapsed_ms": _elapsed_ms(start),
         }
     except (OSError, urllib.error.URLError, TimeoutError, ValueError, json.JSONDecodeError) as exc:
+        models_warning = exc.__class__.__name__
+
+    try:
+        _check_minicpm_chat_ready()
+        return {
+            "available": True,
+            "status": "online",
+            "model": MINICPM_VISION_MODEL,
+            "configured": True,
+            "base_url": MINICPM_VISION_BASE_URL,
+            "models": model_ids,
+            "warning": f"/models unavailable, chat completions ready: {models_warning}",
+            "elapsed_ms": _elapsed_ms(start),
+        }
+    except (OSError, urllib.error.URLError, TimeoutError, KeyError, IndexError, TypeError, ValueError, json.JSONDecodeError) as exc:
         return {
             "available": False,
             "status": "fallback-ready",
@@ -1030,12 +1255,26 @@ def _prune_speech_outputs(keep_path: Path, max_files: int = 24) -> None:
 
 def speak_core(text: str, voice: str, speed: float) -> dict[str, Any]:
     start = time.perf_counter()
+    clean_text = _compact_text(text, 1200)
+    if not clean_text:
+        output_path = OUTPUT_DIR / f"speech-fallback-{uuid4().hex}.wav"
+        _silent_wav(output_path)
+        _prune_speech_outputs(output_path)
+        return {
+            "ok": True,
+            "runtime": "fallback",
+            "model": "hexgrad/Kokoro-82M",
+            "warning": "Kokoro skipped because transcript was empty",
+            "audio_url": f"/outputs/{output_path.name}",
+            "transcript": "",
+            "elapsed_ms": _elapsed_ms(start),
+        }
     try:
         from kokoro import KPipeline
         import soundfile as sf
 
         pipeline = KPipeline(lang_code="a")
-        generator = pipeline(text, voice=voice, speed=speed)
+        generator = pipeline(clean_text, voice=voice, speed=speed)
         _, _, audio = next(generator)
         output_path = OUTPUT_DIR / f"speech-{uuid4().hex}.wav"
         sf.write(output_path, audio, 24000)
@@ -1055,7 +1294,7 @@ def speak_core(text: str, voice: str, speed: float) -> dict[str, Any]:
         "model": "hexgrad/Kokoro-82M",
         "warning": warning,
         "audio_url": f"/outputs/{output_path.name}",
-        "transcript": text,
+        "transcript": clean_text,
         "elapsed_ms": _elapsed_ms(start),
     }
 
@@ -1067,25 +1306,41 @@ def _call_modal_klein(prompt: str, seed: int | None) -> dict[str, Any]:
     headers: dict[str, str] = {"Content-Type": "application/json"}
     if KLEIN_MODAL_TOKEN:
         headers["Authorization"] = f"Bearer {KLEIN_MODAL_TOKEN}"
+    endpoint = _modal_klein_base_url()
+    generate_url = f"{endpoint}/generate"
+    _runtime_log(
+        "Modal Klein generate request "
+        f"url={generate_url} token={'configured' if KLEIN_MODAL_TOKEN else 'not-set'} seed={seed}"
+    )
     request = urllib.request.Request(
-        f"{KLEIN_MODAL_ENDPOINT}/generate",
+        generate_url,
         data=body,
         headers=headers,
         method="POST",
     )
-    with urllib.request.urlopen(request, timeout=KLEIN_MODAL_TIMEOUT_SECONDS) as response:
-        payload = json.loads(response.read().decode("utf-8"))
+    try:
+        with urllib.request.urlopen(request, timeout=KLEIN_MODAL_TIMEOUT_SECONDS) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except (OSError, urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+        detail = _http_exception_detail(exc)
+        _runtime_log(f"Modal Klein generate failed url={generate_url} error={detail}")
+        raise
     if payload.get("ok") is not True:
+        _runtime_log(f"Modal Klein generate returned ok=false payload={_compact_text(json.dumps(payload), 400)}")
         raise ValueError(str(payload.get("error") or payload.get("detail") or "Modal Klein returned ok=false"))
     if payload.get("model") != MODEL_MANIFEST["image_generation"]["id"]:
+        _runtime_log(f"Modal Klein generate returned unexpected model={payload.get('model')}")
         raise ValueError("Modal Klein returned unexpected model")
     if payload.get("runtime") != "modal-klein":
+        _runtime_log(f"Modal Klein generate returned unexpected runtime={payload.get('runtime')}")
         raise ValueError("Modal Klein returned unexpected runtime")
     image_url = payload.get("image_url", "")
     if not isinstance(image_url, str) or not image_url:
+        _runtime_log("Modal Klein generate response did not include image_url")
         raise ValueError("Modal Klein response did not include image_url")
     if image_url and image_url.startswith("/media/"):
-        image_url = f"{KLEIN_MODAL_ENDPOINT}{image_url}"
+        image_url = f"{endpoint}{image_url}"
+    _runtime_log(f"Modal Klein generate succeeded runtime={payload.get('runtime')} image_url={image_url}")
     return {
         "ok": True,
         "runtime": payload.get("runtime", "modal-klein"),
@@ -1117,8 +1372,21 @@ def generate_image_core(prompt: str, seed: int | None) -> dict[str, Any]:
         try:
             return _call_modal_klein(prompt, seed)
         except (OSError, urllib.error.URLError, TimeoutError, ValueError, KeyError, json.JSONDecodeError) as exc:
-            return _fallback_image(prompt, seed, warning=f"Modal Klein unavailable: {exc.__class__.__name__}")
+            return _fallback_image(prompt, seed, warning=f"Modal Klein unavailable: {_http_exception_detail(exc)}")
+    _runtime_log("Modal Klein generate skipped because KLEIN_MODAL_ENDPOINT is not configured")
     return _fallback_image(prompt, seed)
+
+
+def _thumbnail_image_prompt(topic: str) -> str:
+    return (
+        f"Square image-only editorial thumbnail about {topic}. "
+        "Create one centered cohesive scene: a friendly assistive robot or small AI helper guiding a reader "
+        "through visual information with light, sound waves, image cards, and accessibility cues. "
+        "Fill most of the frame with the subject while leaving a small clean margin. "
+        "Modern polished 3D editorial illustration, soft gradients, warm blue and teal accents, clear focal point. "
+        "No words, no letters, no numbers, no captions, no title, no logo, no watermark, "
+        "no user interface, no screenshot, no document page, no poster layout, no split panels."
+    )
 
 
 def generate_article_core(topic: str) -> dict[str, Any]:
@@ -1130,54 +1398,57 @@ def generate_article_core(topic: str) -> dict[str, Any]:
     article = _fallback_article(clean_topic)
     runtime = "fallback"
     warning = None
-    try:
-        body = json.dumps(
-            {
-                "model": LLAMA_CPP_MODEL,
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": (
-                            "You are Tiny Narrator's article generator. "
-                            "Create concise, semantic, accessible article drafts."
-                        ),
-                    },
-                    {"role": "user", "content": _article_generation_prompt(clean_topic)},
-                ],
-                "temperature": 0.35,
-                "max_tokens": 420,
-            }
-        ).encode("utf-8")
-        request = urllib.request.Request(
-            f"{LLAMA_CPP_BASE_URL}/chat/completions",
-            data=body,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        with urllib.request.urlopen(request, timeout=45) as response:
-            payload = json.loads(response.read().decode("utf-8"))
-        generated = json.loads(payload["choices"][0]["message"]["content"].strip())
-        sections = generated.get("sections", [])
-        if (
-            isinstance(generated.get("title"), str)
-            and isinstance(generated.get("dek"), str)
-            and isinstance(sections, list)
-            and len(sections) == 3
-            and all(isinstance(item.get("heading"), str) and isinstance(item.get("body"), str) for item in sections)
-        ):
-            article = {
-                "title": _compact_text(generated["title"], 90),
-                "dek": _compact_text(generated["dek"], 180),
-                "sections": [
-                    {"heading": _compact_text(item["heading"], 80), "body": _compact_text(item["body"], 260)}
-                    for item in sections
-                ],
-            }
-            runtime = "llama.cpp"
-    except (OSError, urllib.error.URLError, TimeoutError, KeyError, json.JSONDecodeError) as exc:
-        warning = f"llama.cpp unavailable: {exc.__class__.__name__}"
+    if not LLAMA_CPP_BASE_URL:
+        warning = "llama.cpp unavailable: LLAMA_CPP_BASE_URL is not configured"
+    else:
+        try:
+            body = json.dumps(
+                {
+                    "model": LLAMA_CPP_MODEL,
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": (
+                                "You are Tiny Narrator's article generator. "
+                                "Create concise, semantic, accessible article drafts."
+                            ),
+                        },
+                        {"role": "user", "content": _article_generation_prompt(clean_topic)},
+                    ],
+                    "temperature": 0.35,
+                    "max_tokens": 650,
+                }
+            ).encode("utf-8")
+            request = urllib.request.Request(
+                f"{LLAMA_CPP_BASE_URL}/chat/completions",
+                data=body,
+                headers=_llama_cpp_headers({"Content-Type": "application/json"}),
+                method="POST",
+            )
+            with urllib.request.urlopen(request, timeout=LLAMA_CPP_TIMEOUT_SECONDS) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            generated = json.loads(payload["choices"][0]["message"]["content"].strip())
+            sections = generated.get("sections", [])
+            if (
+                isinstance(generated.get("title"), str)
+                and isinstance(generated.get("dek"), str)
+                and isinstance(sections, list)
+                and len(sections) == 5
+                and all(isinstance(item.get("heading"), str) and isinstance(item.get("body"), str) for item in sections)
+            ):
+                article = {
+                    "title": _compact_text(generated["title"], 90),
+                    "dek": _compact_text(generated["dek"], 180),
+                    "sections": [
+                        {"heading": _compact_text(item["heading"], 80), "body": _compact_text(item["body"], 720)}
+                        for item in sections
+                    ],
+                }
+                runtime = "llama.cpp"
+        except (OSError, urllib.error.URLError, TimeoutError, ValueError, KeyError, json.JSONDecodeError) as exc:
+            warning = f"llama.cpp unavailable: {exc.__class__.__name__}"
 
-    image_prompt = f"Editorial thumbnail for an accessible article about {clean_topic}."
+    image_prompt = _thumbnail_image_prompt(clean_topic)
     thumbnail = generate_image_core(image_prompt, seed=_topic_seed(clean_topic))
     return {
         "ok": True,
@@ -1360,4 +1631,4 @@ async def handle_exception(_: Request, exc: Exception) -> JSONResponse:
 
 
 if __name__ == "__main__":
-    app.launch(server_name=GRADIO_SERVER_NAME, server_port=GRADIO_SERVER_PORT)
+    app.launch(server_name=GRADIO_SERVER_NAME, server_port=GRADIO_SERVER_PORT, share=GRADIO_SHARE)

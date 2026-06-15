@@ -46,10 +46,10 @@ Copy the example environment file to `.env` and fill in the values. The app load
 Copy-Item .env.example .env
 ```
 
-Start the llama.cpp reader-brain server:
+Start the llama.cpp reader-brain server locally:
 
 ```powershell
-llama-server -hf nvidia/NVIDIA-Nemotron-3-Nano-4B-GGUF:Q4_K_M --alias narrator-brain --port 8080 --host 0.0.0.0
+llama-server -hf nvidia/NVIDIA-Nemotron-3-Nano-4B-GGUF:Q4_K_M --alias narrator-brain --port 8080 --host 0.0.0.0 --ctx-size 0 --reasoning off --n-gpu-layers 999
 ```
 
 Start the app:
@@ -60,15 +60,35 @@ python app.py
 
 Open the local URL printed by Gradio. The Reader route calls `/api/reader-brain`, `/api/image-descriptions`, `/api/describe-image`, `/api/speak`, and `/api/model-budget`. The Generate route calls `/api/generate-article`, which drafts an article with the reader-brain model path and attaches a Klein thumbnail receipt.
 
+## Modal Reader Brain
+
+For a free CPU Hugging Face Space, host the llama.cpp reader-brain server on Modal and point the app at its OpenAI-compatible `/v1` endpoint:
+
+```powershell
+modal secret create tiny-narrator-reader-brain-token LLAMA_CPP_TOKEN=your-random-token
+modal deploy modal_workers/reader_brain.py
+```
+
+Set `LLAMA_CPP_BASE_URL` to the deployed Modal URL with `/v1` appended, for example:
+
+```env
+LLAMA_CPP_BASE_URL=https://your-workspace--tiny-narrator-reader-brain.modal.run/v1
+LLAMA_CPP_MODEL=narrator-brain
+LLAMA_CPP_TOKEN=your-random-token
+```
+
+The Modal worker starts Nemotron with `--ctx-size 0`, `--reasoning off`, full GPU offload, and `--api-key` when `LLAMA_CPP_TOKEN` is configured. It scales down when idle, so the first request after a cold start can be slower.
+
 ## Modal Klein Image Generation
 
 The image generation path uses a Modal-hosted `black-forest-labs/FLUX.2-klein-4B` worker. Deploy the worker:
 
 ```powershell
+modal secret create tiny-narrator-klein-token KLEIN_MODAL_TOKEN=your-random-token
 modal deploy modal_workers/klein_image.py
 ```
 
-Set `KLEIN_MODAL_ENDPOINT` to the deployed worker URL. Set `KLEIN_MODAL_TOKEN` to a shared secret and configure the same token in the Modal worker environment (e.g. via `modal secret create`). When the token is configured, the worker rejects unauthenticated `POST /generate` requests with HTTP 401. When no token is set on either side, requests are allowed for local compatibility.
+Set `KLEIN_MODAL_ENDPOINT` to the deployed worker URL. Set the same `KLEIN_MODAL_TOKEN` value in your local `.env`. The Modal worker uses the fixed `tiny-narrator-klein-token` secret name so Modal's local and remote dependency graphs stay identical.
 
 `/api/runtime-status` reports whether the Modal Klein worker is online or fallback-ready. `/api/runtime-setup` includes the deploy command and required environment variables.
 
@@ -82,13 +102,17 @@ Useful environment variables:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `LLAMA_CPP_BASE_URL` | `http://localhost:8080/v1` | OpenAI-compatible llama.cpp server URL |
+| `LLAMA_CPP_BASE_URL` | `http://localhost:8080/v1` | OpenAI-compatible llama.cpp server URL, local or Modal |
 | `LLAMA_CPP_MODEL` | `narrator-brain` | Alias passed to llama.cpp |
+| `LLAMA_CPP_TOKEN` | *(empty)* | Optional bearer token for protected llama.cpp endpoints. When set, the app sends `Authorization: Bearer <token>`. |
 | `GRADIO_SERVER_NAME` | `0.0.0.0` | Bind address for local or Space runtime |
 | `GRADIO_SERVER_PORT` / `PORT` | `7860` | App port |
+| `GRADIO_SHARE` | `false` | Set to `true` if Gradio cannot verify localhost and needs a share URL |
 | `PUBLIC_BASE_URL` | `http://localhost:7860` | Base URL used in generated judge API commands |
+| `LLAMA_CPP_TIMEOUT_SECONDS` | `90` | Timeout for local llama.cpp reader-brain and article generation calls |
 | `KLEIN_MODAL_ENDPOINT` | *(empty)* | Base URL for the Modal Klein worker, without trailing slash. When set, `/api/generate-image` calls the live worker. |
 | `KLEIN_MODAL_TOKEN` | *(empty)* | Shared bearer token for Modal worker auth. When set, the app sends `Authorization: Bearer <token>` and the worker rejects unauthenticated requests. |
+| `KLEIN_MODAL_HEALTH_TIMEOUT_SECONDS` | `30` | Timeout for Modal Klein `/health`; increase for cold-starting Modal endpoints. |
 | `KLEIN_MODAL_TIMEOUT_SECONDS` | `120` | Request timeout for Modal Klein image generation. |
 | `MINICPM_VISION_BASE_URL` | *(empty)* | OpenAI-compatible MiniCPM-V-4.6 base URL; root or `/v1` both work. |
 | `MINICPM_VISION_API_KEY` | *(empty)* | Bearer token for the MiniCPM vision endpoint. |
