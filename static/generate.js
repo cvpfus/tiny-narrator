@@ -85,6 +85,13 @@ function readerTypeLabel(type) {
   }[type] || type;
 }
 
+function imageNarration(text) {
+  const spokenText = String(text || "").replace(/\s+/g, " ").trim() || "No image description is available.";
+  return /^(image description\.|image\.|graphic\.|photo\.|illustration\.)/i.test(spokenText)
+    ? spokenText
+    : `Image description. ${spokenText}`;
+}
+
 function readableText(element) {
   if (element.dataset.readerType === "image") {
     const image = element.querySelector("img");
@@ -298,6 +305,9 @@ async function narrate(index) {
 
     if (serial !== requestSerial) return;
 
+    if (node.type === "image") {
+      result.narration = imageNarration(result.narration);
+    }
     runtimeStatus.textContent = result.runtime;
     liveNarration.textContent = result.narration;
 

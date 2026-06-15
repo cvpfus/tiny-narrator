@@ -81,6 +81,7 @@ def verify_static_assets() -> None:
     assert_true("/api/speak" in generate_js, "Generate frontend should call speech API")
     assert_true('node.type === "image"' in generate_js, "Generate reader should reserve reader-brain item narration for images")
     assert_true('runtime: "raw text"' in generate_js, "Generate reader should speak text-only nodes without reader-brain")
+    assert_true("Image description." in generate_js, "Generate reader should force image narration to announce image descriptions")
     assert_true("refreshReaderNodes" in generate_js, "Generate frontend should build a generated article reader path")
     assert_true('data-reader-type="heading"' in generate_js, "Generated article sections should mark heading reader nodes")
     assert_true('data-reader-type="paragraph"' in generate_js, "Generated article sections should mark paragraph reader nodes")
@@ -136,6 +137,7 @@ def verify_static_assets() -> None:
     assert_true("readerItemStatus(node)" in app_js, "Narration transcript entries should include reader item position")
     assert_true('node.type === "image"' in app_js, "Article reader should reserve reader-brain item narration for images")
     assert_true('runtime: "raw text"' in app_js, "Article reader should speak text-only nodes without reader-brain")
+    assert_true("Image description." in app_js, "Article reader should force image narration to announce image descriptions")
     assert_true(
         "[${entry.type} / ${entry.position} / ${entry.runtime}]" in app_js,
         "Copied transcript should include type, position, and runtime",
@@ -273,26 +275,50 @@ def verify_live_smoke_script() -> None:
 
 
 def verify_core_fallbacks() -> None:
-    narration = app.reader_brain_core(
-        node_type="heading",
-        text="Why tiny models matter",
-        position="item 1 of 1",
-        mode="narrate",
-    )
+    no_live_reader = [
+        patch.object(app, "LLAMA_CPP_BASE_URL", ""),
+        patch.object(app, "MINICPM_VISION_BASE_URL", ""),
+        patch.object(app, "MINICPM_VISION_API_KEY", ""),
+    ]
+    for patcher in no_live_reader:
+        patcher.start()
+    try:
+        narration = app.reader_brain_core(
+            node_type="heading",
+            text="Why tiny models matter",
+            position="item 1 of 1",
+            mode="narrate",
+        )
+    finally:
+        for patcher in reversed(no_live_reader):
+            patcher.stop()
     assert_true(narration["ok"], "Reader-brain fallback did not return ok")
     assert_true("Heading." in narration["narration"], "Reader-brain fallback lost heading prefix")
     assert_true(isinstance(narration["elapsed_ms"], int), "Reader-brain response should include elapsed_ms")
 
-    summary = app.reader_brain_core(
-        node_type="section",
-        text="Tiny models can run close to the reader. They keep latency low and preserve privacy.",
-        position="Why",
-        mode="summarize",
+    with patch.object(app, "LLAMA_CPP_BASE_URL", ""), patch.object(app, "MINICPM_VISION_BASE_URL", ""), patch.object(app, "MINICPM_VISION_API_KEY", ""):
+        image_fallback = app.reader_brain_core(
+            node_type="image",
+            text="A highlighted paragraph sits beside playback controls.",
+            position="item 1 of 1",
+            mode="narrate",
+        )
+    assert_true(
+        image_fallback["narration"].startswith("Image description."),
+        "Image fallback narration should clearly announce image descriptions",
     )
+
+    with patch.object(app, "LLAMA_CPP_BASE_URL", ""), patch.object(app, "MINICPM_VISION_BASE_URL", ""), patch.object(app, "MINICPM_VISION_API_KEY", ""):
+        summary = app.reader_brain_core(
+            node_type="section",
+            text="Tiny models can run close to the reader. They keep latency low and preserve privacy.",
+            position="Why",
+            mode="summarize",
+        )
     assert_true(summary["ok"], "Reader-brain summary fallback did not return ok")
     assert_true(summary["narration"].startswith("Summary."), "Summary fallback should announce summary mode")
 
-    with patch.object(app, "LLAMA_CPP_BASE_URL", ""):
+    with patch.object(app, "LLAMA_CPP_BASE_URL", ""), patch.object(app, "MINICPM_VISION_BASE_URL", ""), patch.object(app, "MINICPM_VISION_API_KEY", ""):
         unconfigured_reader = app.reader_brain_core(
             node_type="paragraph",
             text="This paragraph should be narrated without a configured endpoint.",
@@ -316,15 +342,39 @@ def verify_core_fallbacks() -> None:
     empty_llama_response.read.return_value = json.dumps({"choices": [{"message": {"content": ""}}]}).encode("utf-8")
     empty_llama_response.__enter__ = lambda s: s
     empty_llama_response.__exit__ = MagicMock(return_value=False)
-    with patch("urllib.request.urlopen", return_value=empty_llama_response):
-        empty_narration = app.reader_brain_core(
-            node_type="paragraph",
-            text="This paragraph still needs narration.",
-            position="item 2 of 3",
-            mode="narrate",
-        )
-        assert_true(empty_narration["runtime"] == "fallback", "Empty llama.cpp response should use fallback narration")
-        assert_true(empty_narration["narration"], "Empty llama.cpp response should not return empty narration")
+    with patch.object(app, "MINICPM_VISION_BASE_URL", ""), patch.object(app, "MINICPM_VISION_API_KEY", ""):
+        with patch("urllib.request.urlopen", return_value=empty_llama_response):
+            empty_narration = app.reader_brain_core(
+                node_type="paragraph",
+                text="This paragraph still needs narration.",
+                position="item 2 of 3",
+                mode="narrate",
+            )
+    assert_true(empty_narration["runtime"] == "fallback", "Empty llama.cpp response should use fallback narration")
+    assert_true(empty_narration["narration"], "Empty llama.cpp response should not return empty narration")
+
+    minicpm_reader_response = MagicMock()
+    minicpm_reader_response.read.return_value = json.dumps(
+        {"choices": [{"message": {"content": "Fallback narration from MiniCPM."}}]}
+    ).encode("utf-8")
+    minicpm_reader_response.__enter__ = lambda s: s
+    minicpm_reader_response.__exit__ = MagicMock(return_value=False)
+    with patch.object(app, "LLAMA_CPP_BASE_URL", "https://llama.example/v1"):
+        with patch.object(app, "MINICPM_VISION_BASE_URL", "https://vision.example/v1"):
+            with patch.object(app, "MINICPM_VISION_API_KEY", "secret-key"):
+                with patch("urllib.request.urlopen", side_effect=[urllib.error.URLError("llama down"), minicpm_reader_response]) as urlopen_mock:
+                    minicpm_narration = app.reader_brain_core(
+                        node_type="paragraph",
+                        text="This paragraph should use MiniCPM after llama.cpp fails.",
+                        position="item 2 of 3",
+                        mode="narrate",
+                    )
+                    minicpm_request = urlopen_mock.call_args_list[1].args[0]
+                    minicpm_body = json.loads(minicpm_request.data.decode("utf-8"))
+    assert_true(minicpm_narration["runtime"] == "minicpm-v4.6-fallback", "MiniCPM should run before rule fallback")
+    assert_true(minicpm_narration["model"] == app.MINICPM_VISION_MODEL, "MiniCPM reader fallback should report MiniCPM model")
+    assert_true(minicpm_body["model"] == app.MINICPM_VISION_MODEL, "MiniCPM fallback should send MiniCPM model id")
+    assert_true("llama.cpp unavailable" in minicpm_narration["warning"], "MiniCPM fallback should preserve primary failure warning")
 
     reasoning_response = MagicMock()
     reasoning_response.read.return_value = json.dumps(
@@ -341,6 +391,25 @@ def verify_core_fallbacks() -> None:
         )
         assert_true(reasoning_narration["runtime"] == "llama.cpp", "Reader brain should use alternate llama.cpp message text fields")
         assert_true("Live narration" in reasoning_narration["narration"], "Reader brain should extract reasoning_content when content is empty")
+
+    image_llama_response = MagicMock()
+    image_llama_response.read.return_value = json.dumps(
+        {"choices": [{"message": {"content": "A digital reader shows a highlighted paragraph and playback controls."}}]}
+    ).encode("utf-8")
+    image_llama_response.__enter__ = lambda s: s
+    image_llama_response.__exit__ = MagicMock(return_value=False)
+    with patch("urllib.request.urlopen", return_value=image_llama_response):
+        image_narration = app.reader_brain_core(
+            node_type="image",
+            text="A digital reader shows a highlighted paragraph and playback controls.",
+            position="item 2 of 3",
+            mode="narrate",
+        )
+        assert_true(image_narration["runtime"] == "llama.cpp", "Image narration should use live reader-brain when available")
+        assert_true(
+            image_narration["narration"].startswith("Image description."),
+            "Live reader-brain image narration should keep an image description prefix",
+        )
 
     description = app.describe_image_core("model-map", caption=None, prompt=None)
     assert_true(description["ok"], "Image description did not return ok")
@@ -726,8 +795,12 @@ def verify_minicpm_vision_integration() -> None:
                     request_body = json.loads(request.data.decode("utf-8"))
                     image_part = request_body["messages"][0]["content"][1]
                     assert_true(
-                        image_part["image_url"]["url"] == "https://tiny.example/static/generated/model-map.png",
-                        "MiniCPM default article image path should use PNG companion assets",
+                        image_part["image_url"]["url"].startswith("data:image/png;base64,"),
+                        "MiniCPM default article image path should inline PNG companion assets",
+                    )
+                    assert_true(
+                        "https://tiny.example" not in image_part["image_url"]["url"],
+                        "MiniCPM default article image path should not depend on public URL fetching",
                     )
 
     invalid_response = MagicMock()

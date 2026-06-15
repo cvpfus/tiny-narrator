@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import base64
 import importlib.util
 import json
+import mimetypes
 import os
 import sys
 import time
@@ -229,7 +231,7 @@ def runtime_setup_core() -> dict[str, Any]:
                     "LLAMA_CPP_TOKEN": "(configured)" if LLAMA_CPP_TOKEN else "(not set)",
                     "LLAMA_CPP_TIMEOUT_SECONDS": str(LLAMA_CPP_TIMEOUT_SECONDS),
                 },
-                "fallback": "rule-based local narration",
+                "fallback": "MiniCPM-V-4.6 text fallback, then rule-based local narration",
             },
             {
                 "role": "speech",
@@ -655,7 +657,7 @@ def _runtime_status_core() -> dict[str, Any]:
             "status": "fallback-ready",
             "base_url": LLAMA_CPP_BASE_URL,
             "model": LLAMA_CPP_MODEL,
-            "fallback": "rule-based local narration",
+            "fallback": "MiniCPM-V-4.6 text fallback, then rule-based local narration",
             "warning": "LLAMA_CPP_BASE_URL is not configured",
             "elapsed_ms": _elapsed_ms(llama_start),
         }
@@ -695,7 +697,7 @@ def _runtime_status_core() -> dict[str, Any]:
                 "status": "fallback-ready",
                 "base_url": LLAMA_CPP_BASE_URL,
                 "model": LLAMA_CPP_MODEL,
-                "fallback": "rule-based local narration",
+                "fallback": "MiniCPM-V-4.6 text fallback, then rule-based local narration",
                 "health_url": models_url,
                 "warning": detail,
                 "elapsed_ms": _elapsed_ms(llama_start),
@@ -853,7 +855,7 @@ def _article_generation_prompt(topic: str) -> str:
 def _fallback_narration(node_type: str, text: str, mode: str) -> str:
     prefix = {
         "heading": "Heading. ",
-        "image": "Image. ",
+        "image": "Image description. ",
         "button": "Control. ",
         "quote": "Quote. ",
     }.get(node_type, "")
@@ -861,6 +863,16 @@ def _fallback_narration(node_type: str, text: str, mode: str) -> str:
         prefix = "Summary. "
     fallback_text = _compact_text(text) or "No readable text is available for this item."
     return f"{prefix}{fallback_text}".strip()
+
+
+def _image_narration(text: str) -> str:
+    spoken_text = _compact_text(text)
+    if not spoken_text:
+        spoken_text = "No image description is available."
+    lowered = spoken_text.lower()
+    if lowered.startswith(("image description.", "image.", "graphic.", "photo.", "illustration.")):
+        return spoken_text
+    return f"Image description. {spoken_text}"
 
 
 def _chat_message_text(payload: dict[str, Any]) -> str:
@@ -907,20 +919,9 @@ def _chat_response_debug(payload: dict[str, Any]) -> str:
     )
 
 
-def reader_brain_core(node_type: str, text: str, position: str | None, mode: str) -> dict[str, Any]:
-    start = time.perf_counter()
-    if not LLAMA_CPP_BASE_URL:
-        return {
-            "ok": True,
-            "runtime": "fallback",
-            "model": "rule-based local fallback",
-            "warning": "llama.cpp unavailable: LLAMA_CPP_BASE_URL is not configured",
-            "narration": _fallback_narration(node_type, text, mode),
-            "elapsed_ms": _elapsed_ms(start),
-        }
-
+def _reader_brain_prompt(node_type: str, text: str, position: str | None, mode: str) -> str:
     if mode == "summarize":
-        prompt = (
+        return (
             "Summarize this article section for screen-reader navigation.\n"
             f"Node type: {node_type}\n"
             f"Position: {position or 'unknown'}\n"
@@ -929,63 +930,164 @@ def reader_brain_core(node_type: str, text: str, position: str | None, mode: str
             "reader can learn in this section, and never mention implementation details. "
             "Return only the final spoken narration. Do not explain your reasoning."
         )
-    else:
-        prompt = (
-            "Convert this article node into concise screen-reader narration.\n"
-            f"Mode: {mode}\n"
-            f"Node type: {node_type}\n"
-            f"Position: {position or 'unknown'}\n"
-            f"Content: {text}\n\n"
-            "Rules: announce the node type only when it helps orientation, keep prose short, "
-            "and never mention implementation details. Return only the final spoken narration. "
-            "Do not explain your reasoning."
+    image_rule = (
+        "If node type is image, start exactly with 'Image description.' and then describe the visible content. "
+        if node_type == "image"
+        else ""
+    )
+    return (
+        "Convert this article node into concise screen-reader narration.\n"
+        f"Mode: {mode}\n"
+        f"Node type: {node_type}\n"
+        f"Position: {position or 'unknown'}\n"
+        f"Content: {text}\n\n"
+        f"Rules: {image_rule}announce the node type only when it helps orientation, keep prose short, "
+        "and never mention implementation details. Return only the final spoken narration. "
+        "Do not explain your reasoning."
+    )
+
+
+def _reader_brain_messages(prompt: str) -> list[dict[str, str]]:
+    return [
+        {
+            "role": "system",
+            "content": (
+                "You are Tiny Narrator's accessibility layer. "
+                "Reasoning mode: off. Do not generate a reasoning trace. "
+                "Do not think step by step. "
+                "Produce clear screen-reader narration for article content. "
+                "Return only the exact text to speak. Do not include analysis, alternatives, "
+                "markdown, labels, or explanations."
+            ),
+        },
+        {"role": "user", "content": prompt},
+    ]
+
+
+def _reader_brain_body(model: str, prompt: str) -> bytes:
+    return json.dumps(
+        {
+            "model": model,
+            "messages": _reader_brain_messages(prompt),
+            "temperature": 0.2,
+            "top_p": 0.9,
+            "stream": False,
+            "max_tokens": 80,
+        }
+    ).encode("utf-8")
+
+
+def _polish_reader_narration(node_type: str, mode: str, narration: str) -> str:
+    narration = _compact_text(narration, 220)
+    if node_type == "image" and mode != "summarize":
+        return _image_narration(narration)
+    return narration
+
+
+def _rule_reader_fallback(
+    node_type: str,
+    text: str,
+    mode: str,
+    start: float,
+    warning: str,
+) -> dict[str, Any]:
+    return {
+        "ok": True,
+        "runtime": "fallback",
+        "model": "rule-based local fallback",
+        "warning": warning,
+        "narration": _fallback_narration(node_type, text, mode),
+        "elapsed_ms": _elapsed_ms(start),
+    }
+
+
+def _minicpm_reader_brain_fallback(
+    prompt: str,
+    node_type: str,
+    text: str,
+    mode: str,
+    start: float,
+    primary_warning: str,
+) -> dict[str, Any] | None:
+    if not MINICPM_VISION_BASE_URL or not MINICPM_VISION_API_KEY:
+        return None
+    try:
+        request = urllib.request.Request(
+            _openai_compatible_url(MINICPM_VISION_BASE_URL, "chat/completions"),
+            data=_reader_brain_body(MINICPM_VISION_MODEL, prompt),
+            headers={
+                "Authorization": f"Bearer {MINICPM_VISION_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(request, timeout=MINICPM_VISION_TIMEOUT_SECONDS) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        narration = _polish_reader_narration(node_type, mode, _chat_message_text(payload))
+        if not narration:
+            raise ValueError("MiniCPM reader fallback returned empty narration")
+        return {
+            "ok": True,
+            "runtime": "minicpm-v4.6-fallback",
+            "model": MINICPM_VISION_MODEL,
+            "warning": primary_warning,
+            "narration": narration,
+            "elapsed_ms": _elapsed_ms(start),
+        }
+    except (OSError, urllib.error.URLError, TimeoutError, ValueError, KeyError, json.JSONDecodeError) as exc:
+        detail = _http_exception_detail(exc)
+        _runtime_log(f"MiniCPM reader-brain fallback failed error={detail}")
+        return _rule_reader_fallback(
+            node_type,
+            text,
+            mode,
+            start,
+            f"{primary_warning}; MiniCPM reader fallback unavailable: {detail}",
         )
 
+
+def reader_brain_core(node_type: str, text: str, position: str | None, mode: str) -> dict[str, Any]:
+    start = time.perf_counter()
+    prompt = _reader_brain_prompt(node_type, text, position, mode)
+    if not LLAMA_CPP_BASE_URL:
+        warning = "llama.cpp unavailable: LLAMA_CPP_BASE_URL is not configured"
+        minicpm_fallback = _minicpm_reader_brain_fallback(
+            prompt,
+            node_type,
+            text,
+            mode,
+            start,
+            warning,
+        )
+        if minicpm_fallback:
+            return minicpm_fallback
+        return _rule_reader_fallback(node_type, text, mode, start, warning)
+
     try:
-        body = json.dumps(
-            {
-                "model": LLAMA_CPP_MODEL,
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": (
-                            "You are Tiny Narrator's accessibility layer. "
-                            "Reasoning mode: off. Do not generate a reasoning trace. "
-                            "Do not think step by step. "
-                            "Produce clear screen-reader narration for article content. "
-                            "Return only the exact text to speak. Do not include analysis, alternatives, "
-                            "markdown, labels, or explanations."
-                        ),
-                    },
-                    {"role": "user", "content": prompt},
-                ],
-                "temperature": 0.2,
-                "top_p": 0.9,
-                "stream": False,
-                "max_tokens": 80,
-            }
-        ).encode("utf-8")
         request = urllib.request.Request(
             f"{LLAMA_CPP_BASE_URL}/chat/completions",
-            data=body,
+            data=_reader_brain_body(LLAMA_CPP_MODEL, prompt),
             headers=_llama_cpp_headers({"Content-Type": "application/json"}),
             method="POST",
         )
         with urllib.request.urlopen(request, timeout=LLAMA_CPP_TIMEOUT_SECONDS) as response:
             payload = json.loads(response.read().decode("utf-8"))
-        narration = _compact_text(_chat_message_text(payload), 220)
+        narration = _polish_reader_narration(node_type, mode, _chat_message_text(payload))
         if not narration:
-            fallback = _fallback_narration(node_type, text, mode)
             detail = _chat_response_debug(payload)
             _runtime_log(f"llama.cpp returned empty narration; response_shape={detail}")
-            return {
-                "ok": True,
-                "runtime": "fallback",
-                "model": "rule-based local fallback",
-                "warning": f"llama.cpp returned empty narration ({detail})",
-                "narration": fallback,
-                "elapsed_ms": _elapsed_ms(start),
-            }
+            warning = f"llama.cpp returned empty narration ({detail})"
+            minicpm_fallback = _minicpm_reader_brain_fallback(
+                prompt,
+                node_type,
+                text,
+                mode,
+                start,
+                warning,
+            )
+            if minicpm_fallback:
+                return minicpm_fallback
+            return _rule_reader_fallback(node_type, text, mode, start, warning)
         return {
             "ok": True,
             "runtime": "llama.cpp",
@@ -994,14 +1096,18 @@ def reader_brain_core(node_type: str, text: str, position: str | None, mode: str
             "elapsed_ms": _elapsed_ms(start),
         }
     except (OSError, urllib.error.URLError, TimeoutError, ValueError, KeyError, json.JSONDecodeError) as exc:
-        return {
-            "ok": True,
-            "runtime": "fallback",
-            "model": "rule-based local fallback",
-            "warning": f"llama.cpp unavailable: {exc.__class__.__name__}",
-            "narration": _fallback_narration(node_type, text, mode),
-            "elapsed_ms": _elapsed_ms(start),
-        }
+        warning = f"llama.cpp unavailable: {_http_exception_detail(exc)}"
+        minicpm_fallback = _minicpm_reader_brain_fallback(
+            prompt,
+            node_type,
+            text,
+            mode,
+            start,
+            warning,
+        )
+        if minicpm_fallback:
+            return minicpm_fallback
+        return _rule_reader_fallback(node_type, text, mode, start, warning)
 
 
 def _openai_compatible_url(base_url: str, path: str) -> str:
@@ -1019,6 +1125,24 @@ def _article_image_by_id(image_id: str) -> dict[str, Any] | None:
     return next((image for image in ARTICLE_IMAGES if image["id"] == image_id), None)
 
 
+def _local_image_data_url(image_path: str) -> str | None:
+    if image_path.startswith(("http://", "https://", "data:")):
+        return None
+    normalized = image_path.lstrip("/")
+    local_path = (ROOT / normalized).resolve()
+    try:
+        local_path.relative_to(ROOT.resolve())
+    except ValueError:
+        return None
+    mime_type, _ = mimetypes.guess_type(local_path.name)
+    if mime_type not in {"image/png", "image/jpeg", "image/webp"}:
+        return None
+    if not local_path.exists():
+        return None
+    encoded = base64.b64encode(local_path.read_bytes()).decode("ascii")
+    return f"data:{mime_type};base64,{encoded}"
+
+
 def _absolute_image_url(image_url: str | None, image_id: str | None = None) -> str | None:
     candidate = image_url
     if not candidate and image_id:
@@ -1028,6 +1152,9 @@ def _absolute_image_url(image_url: str | None, image_id: str | None = None) -> s
         return None
     if candidate.startswith(("http://", "https://", "data:")):
         return candidate
+    data_url = _local_image_data_url(candidate)
+    if data_url:
+        return data_url
     if candidate.startswith("/"):
         return f"{PUBLIC_BASE_URL}{candidate}"
     return f"{PUBLIC_BASE_URL}/{candidate}"
