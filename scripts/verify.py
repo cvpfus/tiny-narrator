@@ -90,6 +90,8 @@ def verify_static_assets() -> None:
     assert_true("loadDemoScript" not in app_js, "Article frontend should not render the structured demo script")
     assert_true("loadModelBudget" in app_js, "Article frontend should render the model stack panel")
     assert_true("/api/model-budget" in app_js, "Article frontend should fetch model budget data")
+    assert_true("/api/runtime-status" in app_js, "Article frontend should fetch runtime status")
+    assert_true("status-pill" in app_js or "statusClass" in app_js, "Article frontend should render per-role status labels")
     assert_true("modelStackList.innerHTML" in app_js, "Article frontend should render model stack items")
     assert_true("Tiny Titan pass" in app_js, "Article frontend should render per-model Tiny Titan pass labels")
     assert_true("/evidence" not in index_html, "Article page should not link to a removed evidence page")
@@ -117,6 +119,12 @@ def verify_static_assets() -> None:
     assert_true("renderReaderQueue" not in app_js, "Frontend should not render a visible reader queue")
     assert_true("readerQueueList" not in app_js, "Frontend should not bind a visible reader queue")
     assert_true("narrate(node.index)" in app_js, "Reader mode should support click-to-read article items")
+
+    assert_true("describeGeneratedThumbnail" in generate_js, "Generate frontend should describe generated thumbnails")
+    assert_true("/api/describe-image" in generate_js, "Generate frontend should call describe-image for thumbnails")
+    assert_true("image_url" in generate_js, "Generate frontend should send image_url to describe-image")
+    assert_true("generatedThumbnail.alt" in generate_js, "Generate frontend should update thumbnail alt from descriptor")
+    assert_true("fallbackAlt" in generate_js, "Generate frontend should preserve fallback alt on descriptor failure")
 
     submission = (ROOT / "SUBMISSION.md").read_text(encoding="utf-8")
     for target in ["Tiny Titan", "Llama Champion", "Off-Brand", "Field Notes"]:
@@ -174,11 +182,60 @@ def verify_space_metadata() -> None:
     assert_true("Apache License" in license_text, "Repository should include the Apache license text")
     assert_true("Version 2.0" in license_text, "Repository license should match Space metadata")
     assert_true(f"gradio=={sdk_version}" in requirements, "requirements.txt should pin Gradio to sdk_version")
-    for package in ["pydantic", "kokoro", "soundfile"]:
+    for package in ["pydantic", "kokoro", "soundfile", "python-dotenv"]:
         assert_true(
-            any(line.startswith(f"{package}>=") or line.startswith(f"{package}==") for line in requirements),
+            any(
+                line.startswith(f"{package}>=") or line.startswith(f"{package}==") or line.strip() == package
+                for line in requirements
+            ),
             f"requirements.txt should include {package}",
         )
+
+
+def verify_dotenv_wiring() -> None:
+    """Verify that python-dotenv is wired in before core env constants are read."""
+    requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8").splitlines()
+    assert_true(
+        any(line.strip() == "python-dotenv" or line.startswith("python-dotenv>=") for line in requirements),
+        "requirements.txt should include python-dotenv",
+    )
+
+    app_source = (ROOT / "app.py").read_text(encoding="utf-8")
+    assert_true("from dotenv import load_dotenv" in app_source, "app.py should import load_dotenv")
+    assert_true("load_dotenv()" in app_source, "app.py should call load_dotenv()")
+
+    import_pos = app_source.index("from dotenv import load_dotenv")
+    call_pos = app_source.index("load_dotenv()")
+    llama_const = app_source.index("LLAMA_CPP_BASE_URL = os.getenv")
+    assert_true(
+        import_pos < call_pos < llama_const,
+        "load_dotenv() should be called before LLAMA_CPP_BASE_URL is assigned",
+    )
+
+    env_example = ROOT / ".env.example"
+    assert_true(env_example.exists(), ".env.example should exist")
+    env_content = env_example.read_text(encoding="utf-8")
+    for secret_pattern in ["sk-", "AKIA", "ghp_", "xoxb-"]:
+        assert_true(
+            secret_pattern not in env_content,
+            f".env.example should not contain real-looking secrets ({secret_pattern})",
+        )
+
+
+def verify_live_smoke_script() -> None:
+    """Verify that the live smoke test script exists, is syntactically valid, and documents redaction."""
+    smoke_path = ROOT / "scripts" / "live_smoke.py"
+    assert_true(smoke_path.exists(), "scripts/live_smoke.py should exist")
+    py_compile.compile(str(smoke_path), doraise=True)
+    smoke_source = smoke_path.read_text(encoding="utf-8")
+    assert_true("--base-url" in smoke_source, "Smoke script should support --base-url argument")
+    assert_true("/api/runtime-status" in smoke_source, "Smoke script should check runtime status")
+    assert_true("/api/describe-image" in smoke_source, "Smoke script should check describe-image")
+    assert_true("/api/generate-image" in smoke_source, "Smoke script should check generate-image")
+    assert_true("_role_is_configured" in smoke_source, "Smoke script should fail configured live paths instead of skipping them")
+    assert_true('details.get("configured") is True' in smoke_source, "Smoke script should preserve configured metadata from runtime status")
+    assert_true("SKIP" in smoke_source or "skip" in smoke_source, "Smoke script should document skipping behavior")
+    assert_true("Secrets" in smoke_source or "secrets" in smoke_source or "never printed" in smoke_source.lower(), "Smoke script should document secret redaction")
 
 
 def verify_core_fallbacks() -> None:
@@ -336,6 +393,58 @@ def verify_modal_klein_integration() -> None:
     assert_true('@api.get("/media/{filename}")' in worker_source, "Modal worker should expose GET /media/{filename}")
     assert_true("404" in worker_source or "not found" in worker_source.lower(), "Modal worker should handle missing media with 404")
     assert_true("reload" in worker_source, "Modal worker should reload volume before serving")
+
+    # Test: auth wiring — app sends bearer token when configured
+    with patch.object(app, "KLEIN_MODAL_ENDPOINT", "https://example-modal.modal.run"), patch.object(app, "KLEIN_MODAL_TOKEN", "test-secret-token"):
+        with patch("urllib.request.urlopen", return_value=mock_response) as urlopen_mock:
+            app.generate_image_core("auth test", seed=1)
+            sent_request = urlopen_mock.call_args.args[0]
+            assert_true(
+                sent_request.headers.get("Authorization") == "Bearer test-secret-token",
+                "App should send Bearer token when KLEIN_MODAL_TOKEN is configured",
+            )
+
+    # Test: auth wiring — health check sends bearer token when configured
+    good_health = MagicMock()
+    good_health.read.return_value = json.dumps({"ok": True, "model": app.MODEL_MANIFEST["image_generation"]["id"], "runtime": "modal-klein"}).encode("utf-8")
+    good_health.__enter__ = lambda s: s
+    good_health.__exit__ = MagicMock(return_value=False)
+    with patch.object(app, "KLEIN_MODAL_ENDPOINT", "https://example-modal.modal.run"), patch.object(app, "KLEIN_MODAL_TOKEN", "test-secret-token"):
+        with patch("urllib.request.urlopen", return_value=good_health) as urlopen_mock:
+            app._runtime_status_core()
+            health_request = urlopen_mock.call_args.args[0]
+            assert_true(
+                health_request.headers.get("Authorization") == "Bearer test-secret-token",
+                "App should send Bearer token for health checks when KLEIN_MODAL_TOKEN is configured",
+            )
+
+    # Test: .env.example includes KLEIN_MODAL_TOKEN
+    env_example = (ROOT / ".env.example").read_text(encoding="utf-8")
+    assert_true("KLEIN_MODAL_TOKEN" in env_example, ".env.example should document KLEIN_MODAL_TOKEN")
+
+    # Test: worker validates token
+    assert_true("KLEIN_MODAL_TOKEN" in worker_source, "Modal worker should read KLEIN_MODAL_TOKEN")
+    assert_true("401" in worker_source, "Modal worker should reject unauthorized requests with 401")
+    assert_true("_check_token" in worker_source, "Modal worker should have a token validation helper")
+    assert_true(
+        "async def health(request: Request)" in worker_source,
+        "Modal worker health route should accept the request for token validation",
+    )
+
+    # Test: runtime setup does not expose the token value
+    with patch.object(app, "KLEIN_MODAL_TOKEN", "super-secret-value"):
+        setup = app.runtime_setup_core()
+        setup_json = json.dumps(setup)
+        assert_true("super-secret-value" not in setup_json, "Runtime setup must never expose the token value")
+        image_step = next(step for step in setup["steps"] if step["role"] == "image_generation")
+        assert_true(
+            "KLEIN_MODAL_TOKEN" in image_step["env"],
+            "Runtime setup should document KLEIN_MODAL_TOKEN",
+        )
+        assert_true(
+            image_step["env"]["KLEIN_MODAL_TOKEN"] == "(configured)",
+            "Runtime setup should show token as configured without exposing the value",
+        )
 
     # Test: runtime status includes Modal Klein path
     with patch.object(app, "KLEIN_MODAL_ENDPOINT", ""):
@@ -821,6 +930,8 @@ def main() -> None:
     py_compile.compile(str(ROOT / "modal_workers" / "klein_image.py"), doraise=True)
     verify_static_assets()
     verify_space_metadata()
+    verify_dotenv_wiring()
+    verify_live_smoke_script()
     verify_core_fallbacks()
     verify_modal_klein_integration()
     verify_minicpm_vision_integration()

@@ -213,24 +213,12 @@ function roleLabel(role) {
 }
 
 async function loadModelBudget() {
-  try {
-    const payload = await postJson("/api/model-budget");
-    modelBudgetStatus.textContent = payload.all_models_within_limit
-      ? `All <= ${payload.limit_billion}B`
-      : "Review needed";
-    modelStackList.innerHTML = payload.models
-      .map((model) => `
-        <li>
-          <div class="budget-row">
-            <span>${escapeHtml(roleLabel(model.role))}</span>
-            <span class="budget-pill">${escapeHtml(model.params)}</span>
-          </div>
-          <p>${escapeHtml(model.runtime)} | ${model.within_limit ? "Tiny Titan pass" : "Review parameter budget"}</p>
-          <p>${escapeHtml(model.id)}</p>
-        </li>
-      `)
-      .join("");
-  } catch {
+  const [budget, runtimeStatus] = await Promise.allSettled([
+    postJson("/api/model-budget"),
+    postJson("/api/runtime-status"),
+  ]);
+
+  if (budget.status === "rejected") {
     modelBudgetStatus.textContent = "Unavailable";
     modelStackList.innerHTML = `
       <li>
@@ -241,7 +229,35 @@ async function loadModelBudget() {
         <p>Model budget is unavailable.</p>
       </li>
     `;
+    return;
   }
+
+  const payload = budget.value;
+  const statusMap = runtimeStatus.status === "fulfilled" ? runtimeStatus.value : null;
+
+  modelBudgetStatus.textContent = payload.all_models_within_limit
+    ? `All <= ${payload.limit_billion}B`
+    : "Review needed";
+
+  modelStackList.innerHTML = payload.models
+    .map((model) => {
+      const status = statusMap?.[model.role];
+      const statusLabel = status?.status || "unknown";
+      const statusClass = statusLabel === "online" ? "status-online"
+        : statusLabel === "offline" ? "status-offline"
+        : "status-fallback";
+      return `
+        <li>
+          <div class="budget-row">
+            <span>${escapeHtml(roleLabel(model.role))}</span>
+            <span class="budget-pill">${escapeHtml(model.params)}</span>
+          </div>
+          <p>${escapeHtml(model.runtime)} | ${model.within_limit ? "Tiny Titan pass" : "Review parameter budget"} | <span class="status-pill ${statusClass}">${escapeHtml(statusLabel)}</span></p>
+          <p>${escapeHtml(model.id)}</p>
+        </li>
+      `;
+    })
+    .join("");
 }
 
 async function loadImageDescriptions() {

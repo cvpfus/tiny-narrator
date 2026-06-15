@@ -40,7 +40,7 @@ Install dependencies:
 python -m pip install -r requirements.txt
 ```
 
-Copy the example environment file if you want a local `.env` starting point:
+Copy the example environment file to `.env` and fill in the values. The app loads `.env` automatically at startup, so no shell exports are required. Process environment variables still override `.env` values.
 
 ```powershell
 Copy-Item .env.example .env
@@ -68,7 +68,7 @@ The image generation path uses a Modal-hosted `black-forest-labs/FLUX.2-klein-4B
 modal deploy modal_workers/klein_image.py
 ```
 
-Set `KLEIN_MODAL_ENDPOINT` to the deployed worker URL. When configured, `/api/generate-image` and `/api/generate-article` call the live Modal endpoint for real Klein inference. When the endpoint is not set, unreachable, or returns invalid data, the app falls back to bundled SVG assets with explicit fallback metadata.
+Set `KLEIN_MODAL_ENDPOINT` to the deployed worker URL. Set `KLEIN_MODAL_TOKEN` to a shared secret and configure the same token in the Modal worker environment (e.g. via `modal secret create`). When the token is configured, the worker rejects unauthenticated `POST /generate` requests with HTTP 401. When no token is set on either side, requests are allowed for local compatibility.
 
 `/api/runtime-status` reports whether the Modal Klein worker is online or fallback-ready. `/api/runtime-setup` includes the deploy command and required environment variables.
 
@@ -88,6 +88,7 @@ Useful environment variables:
 | `GRADIO_SERVER_PORT` / `PORT` | `7860` | App port |
 | `PUBLIC_BASE_URL` | `http://localhost:7860` | Base URL used in generated judge API commands |
 | `KLEIN_MODAL_ENDPOINT` | *(empty)* | Base URL for the Modal Klein worker, without trailing slash. When set, `/api/generate-image` calls the live worker. |
+| `KLEIN_MODAL_TOKEN` | *(empty)* | Shared bearer token for Modal worker auth. When set, the app sends `Authorization: Bearer <token>` and the worker rejects unauthenticated requests. |
 | `KLEIN_MODAL_TIMEOUT_SECONDS` | `120` | Request timeout for Modal Klein image generation. |
 | `MINICPM_VISION_BASE_URL` | *(empty)* | OpenAI-compatible MiniCPM-V-4.6 base URL; root or `/v1` both work. |
 | `MINICPM_VISION_API_KEY` | *(empty)* | Bearer token for the MiniCPM vision endpoint. |
@@ -101,6 +102,16 @@ python scripts/verify.py
 ```
 
 The verifier checks syntax, static assets, Space metadata consistency, deterministic fallback model paths, and generated speech file behavior.
+
+## Live Model Smoke Tests
+
+After starting the app with configured model endpoints, run the opt-in smoke script to verify live inference:
+
+```powershell
+python scripts/live_smoke.py --base-url http://127.0.0.1:7860
+```
+
+The smoke script checks `/api/runtime-status`, `/api/describe-image`, and `/api/generate-image`. It skips checks for unconfigured runtimes and exits non-zero only when a configured live check fails. Secrets are never printed.
 
 `/api/model-budget` exposes numeric parameter counts for every model role and reports whether the full stack stays within the 4B Tiny Titan limit.
 

@@ -12,12 +12,14 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+from dotenv import load_dotenv
 from fastapi import Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from gradio import Server
 from pydantic import BaseModel
 
+load_dotenv()
 
 ROOT = Path(__file__).parent
 STATIC_DIR = ROOT / "static"
@@ -38,6 +40,7 @@ GRADIO_SERVER_NAME = os.getenv("GRADIO_SERVER_NAME", "0.0.0.0")
 GRADIO_SERVER_PORT = int(os.getenv("PORT", os.getenv("GRADIO_SERVER_PORT", "7860")))
 PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", f"http://localhost:{GRADIO_SERVER_PORT}").rstrip("/")
 KLEIN_MODAL_ENDPOINT = os.getenv("KLEIN_MODAL_ENDPOINT", "").rstrip("/")
+KLEIN_MODAL_TOKEN = os.getenv("KLEIN_MODAL_TOKEN", "")
 KLEIN_MODAL_TIMEOUT_SECONDS = _int_env("KLEIN_MODAL_TIMEOUT_SECONDS", 120)
 MINICPM_VISION_BASE_URL = os.getenv("MINICPM_VISION_BASE_URL", "").rstrip("/")
 MINICPM_VISION_API_KEY = os.getenv("MINICPM_VISION_API_KEY", "")
@@ -220,6 +223,7 @@ def runtime_setup_core() -> dict[str, Any]:
                 "command": "modal deploy modal_workers/klein_image.py",
                 "env": {
                     "KLEIN_MODAL_ENDPOINT": KLEIN_MODAL_ENDPOINT or "(set to Modal worker URL)",
+                    "KLEIN_MODAL_TOKEN": "(configured)" if KLEIN_MODAL_TOKEN else "(not set)",
                     "KLEIN_MODAL_TIMEOUT_SECONDS": str(KLEIN_MODAL_TIMEOUT_SECONDS),
                 },
                 "fallback": "bundled generated article assets",
@@ -619,8 +623,12 @@ def _runtime_status_core() -> dict[str, Any]:
     klein_status: dict[str, Any]
     if KLEIN_MODAL_ENDPOINT:
         try:
+            health_headers: dict[str, str] = {}
+            if KLEIN_MODAL_TOKEN:
+                health_headers["Authorization"] = f"Bearer {KLEIN_MODAL_TOKEN}"
             request = urllib.request.Request(
                 f"{KLEIN_MODAL_ENDPOINT}/health", method="GET",
+                headers=health_headers,
             )
             with urllib.request.urlopen(request, timeout=5) as response:
                 payload = json.loads(response.read().decode("utf-8"))
@@ -1056,10 +1064,13 @@ def _call_modal_klein(prompt: str, seed: int | None) -> dict[str, Any]:
     """Call the Modal Klein worker for live image generation."""
     start = time.perf_counter()
     body = json.dumps({"prompt": prompt, "seed": seed}).encode("utf-8")
+    headers: dict[str, str] = {"Content-Type": "application/json"}
+    if KLEIN_MODAL_TOKEN:
+        headers["Authorization"] = f"Bearer {KLEIN_MODAL_TOKEN}"
     request = urllib.request.Request(
         f"{KLEIN_MODAL_ENDPOINT}/generate",
         data=body,
-        headers={"Content-Type": "application/json"},
+        headers=headers,
         method="POST",
     )
     with urllib.request.urlopen(request, timeout=KLEIN_MODAL_TIMEOUT_SECONDS) as response:

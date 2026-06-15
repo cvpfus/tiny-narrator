@@ -14,6 +14,7 @@ Tiny Narrator's app.py calls these routes through KLEIN_MODAL_ENDPOINT.
 from __future__ import annotations
 
 import io
+import os
 import time
 from pathlib import Path
 from uuid import uuid4
@@ -70,14 +71,30 @@ def _get_pipeline():
 )
 @modal.asgi_app()
 def klein_api():
-    from fastapi import FastAPI, HTTPException
+    from fastapi import FastAPI, HTTPException, Request
     from fastapi.responses import Response
     import torch
 
     api = FastAPI(title="Tiny Narrator Klein Worker")
 
+    def _check_token(request: Request) -> None:
+        """Reject the request if a token is configured but not provided or mismatched."""
+        expected = os.getenv("KLEIN_MODAL_TOKEN", "")
+        if not expected:
+            return
+        auth_header = request.headers.get("authorization", "")
+        token_header = request.headers.get("x-tiny-narrator-token", "")
+        provided = ""
+        if auth_header.startswith("Bearer "):
+            provided = auth_header[len("Bearer "):]
+        elif token_header:
+            provided = token_header
+        if provided != expected:
+            raise HTTPException(status_code=401, detail="Unauthorized")
+
     @api.get("/health")
-    async def health() -> dict:
+    async def health(request: Request) -> dict:
+        _check_token(request)
         return {
             "ok": True,
             "model": IMAGE_MODEL_ID,
@@ -85,13 +102,14 @@ def klein_api():
         }
 
     @api.post("/generate")
-    async def generate(request: dict) -> dict:
+    async def generate(request: Request, body: dict) -> dict:
+        _check_token(request)
         start = time.perf_counter()
-        prompt = str(request.get("prompt") or "").strip()
+        prompt = str(body.get("prompt") or "").strip()
         if not prompt:
             raise HTTPException(status_code=400, detail="prompt is required")
 
-        seed = request.get("seed")
+        seed = body.get("seed")
         generator = None
         if seed is not None:
             try:

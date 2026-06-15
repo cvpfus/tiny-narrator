@@ -106,3 +106,7 @@ Deploy the worker with `modal deploy modal_workers/klein_image.py`, then set `KL
 `KLEIN_MODAL_TIMEOUT_SECONDS` defaults to 120 seconds, which accommodates warm inference but avoids blocking local demos indefinitely during cold starts.
 
 This design keeps verification stable without requiring Modal credentials or GPU access: the verifier checks fallback behavior, and live Modal deployment is a manual step documented in the README.
+
+## Pre-Demo Validation
+
+`scripts/live_smoke.py` is an opt-in script for confirming live model inference before a demo. It calls `/api/runtime-status`, `/api/describe-image`, and `/api/generate-image`, then reports pass/skip/fail per role. Unconfigured runtimes are skipped, and the script exits non-zero only when a configured live check fails. Secrets are never printed, so the output is safe to include in demo logs or field notes.

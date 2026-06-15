@@ -589,6 +589,33 @@ dd {
   border: 1px solid rgba(42, 122, 110, 0.2);
 }
 
+.status-pill {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.status-online {
+  background: rgba(34, 140, 60, 0.12);
+  color: #1d7a34;
+  border: 1px solid rgba(34, 140, 60, 0.25);
+}
+
+.status-fallback {
+  background: rgba(160, 140, 60, 0.1);
+  color: #7a6a20;
+  border: 1px solid rgba(160, 140, 60, 0.25);
+}
+
+.status-offline {
+  background: rgba(180, 50, 50, 0.1);
+  color: #a03030;
+  border: 1px solid rgba(180, 50, 50, 0.25);
+}
+
 .image-receipt-pill {
   background: rgba(180, 150, 60, 0.1);
   color: #7a6520;

@@ -427,6 +427,27 @@ function renderArticle(payload) {
   }
 }
 
+async function describeGeneratedThumbnail(payload) {
+  const thumbnail = payload.thumbnail;
+  const fallbackAlt = generatedThumbnail.alt;
+  try {
+    const result = await postJson("/api/describe-image", {
+      image_id: "generated-thumbnail",
+      caption: payload.article.title || payload.topic,
+      prompt: thumbnail.prompt || payload.topic,
+      image_url: thumbnail.image_url,
+    });
+    if (result.ok && result.alt_text) {
+      generatedThumbnail.alt = result.alt_text;
+      refreshReaderNodes();
+      thumbnailReceipt.textContent =
+        `${thumbnail.generation_model} | seed ${thumbnail.seed} | ${thumbnail.runtime} | described by ${result.runtime}`;
+    }
+  } catch {
+    generatedThumbnail.alt = fallbackAlt;
+  }
+}
+
 async function loadManifest() {
   try {
     const manifest = await postJson("/api/article-manifest");
@@ -464,6 +485,7 @@ form.addEventListener("submit", async (event) => {
   try {
     const payload = await postJson("/api/generate-article", { topic });
     renderArticle(payload);
+    describeGeneratedThumbnail(payload);
   } catch (error) {
     generatorStatus.textContent = `Generation failed: ${error.message}`;
   } finally {
