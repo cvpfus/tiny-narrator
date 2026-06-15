@@ -40,6 +40,12 @@ Install dependencies:
 python -m pip install -r requirements.txt
 ```
 
+Copy the example environment file if you want a local `.env` starting point:
+
+```powershell
+Copy-Item .env.example .env
+```
+
 Start the llama.cpp reader-brain server:
 
 ```powershell
