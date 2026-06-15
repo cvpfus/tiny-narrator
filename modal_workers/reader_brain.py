@@ -13,7 +13,9 @@ routes traffic to the container port.
 """
 
 import os
+from pathlib import Path
 import subprocess
+import shutil
 
 import modal
 
@@ -30,6 +32,28 @@ model_cache = modal.Volume.from_name("tiny-narrator-reader-brain-cache", create_
 
 def _secret_names() -> list[modal.Secret]:
     return [modal.Secret.from_name("tiny-narrator-reader-brain-token")]
+
+
+def _find_llama_server() -> str:
+    candidates = [
+        shutil.which("llama-server"),
+        "/app/llama-server",
+        "/usr/local/bin/llama-server",
+        "/usr/bin/llama-server",
+        "/bin/llama-server",
+        "/llama-server",
+    ]
+    for candidate in candidates:
+        if candidate and Path(candidate).exists():
+            return candidate
+
+    inspected = []
+    for directory in ("/app", "/usr/local/bin", "/usr/bin", "/bin"):
+        path = Path(directory)
+        if path.exists():
+            inspected.append(f"{directory}: {[item.name for item in path.glob('*llama*')]}")
+    raise FileNotFoundError(f"llama-server binary was not found. Inspected: {'; '.join(inspected)}")
+
 
 reader_brain_image = (
     modal.Image.from_registry(
@@ -55,7 +79,7 @@ reader_brain_image = (
     max_containers=1,
 )
 @modal.concurrent(max_inputs=20)
-@modal.web_server(SERVER_PORT)
+@modal.web_server(SERVER_PORT, startup_timeout=600)
 def reader_brain_server():
     model_ref = os.getenv("READER_BRAIN_MODEL_REF", MODEL_REF)
     model_alias = os.getenv("READER_BRAIN_MODEL_ALIAS", MODEL_ALIAS)
@@ -64,7 +88,7 @@ def reader_brain_server():
     api_key = os.getenv("LLAMA_CPP_TOKEN", "")
 
     command = [
-        "llama-server",
+        _find_llama_server(),
         "--host",
         "0.0.0.0",
         "--port",

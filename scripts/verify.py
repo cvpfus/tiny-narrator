@@ -476,6 +476,7 @@ def verify_modal_klein_integration() -> None:
     assert_true(reader_worker_path.exists(), "Modal reader-brain worker file should exist")
     reader_worker_source = reader_worker_path.read_text(encoding="utf-8")
     assert_true("modal.web_server" in reader_worker_source, "Reader-brain worker should expose llama-server through Modal web_server")
+    assert_true("startup_timeout=600" in reader_worker_source, "Reader-brain worker should allow slow first llama.cpp model loads")
     assert_true("ghcr.io/ggml-org/llama.cpp:server-cuda12" in reader_worker_source, "Reader-brain worker should use the prebuilt llama.cpp CUDA server image")
     assert_true("ENTRYPOINT []" in reader_worker_source, "Reader-brain worker should clear the prebuilt image entrypoint for Modal's Python runner")
     assert_true("GGML_CUDA=ON" not in reader_worker_source, "Reader-brain worker should not compile llama.cpp during Modal builds")
@@ -488,6 +489,9 @@ def verify_modal_klein_integration() -> None:
     assert_true("tiny-narrator-reader-brain-token" in reader_worker_source, "Reader-brain worker should use a fixed Modal token secret")
     assert_true('"--api-key"' in reader_worker_source, "Reader-brain worker should pass an API key to llama-server when configured")
     assert_true('display_command[key_index] = "***"' in reader_worker_source, "Reader-brain worker should redact API keys in logs")
+    assert_true("_find_llama_server" in reader_worker_source, "Reader-brain worker should resolve the prebuilt llama-server binary path")
+    assert_true("/app/llama-server" in reader_worker_source, "Reader-brain worker should check the prebuilt image binary path")
+    assert_true("binary was not found" in reader_worker_source, "Reader-brain worker should fail with useful binary diagnostics")
 
     # Test: reader-brain auth wiring sends bearer tokens when configured
     model_response = MagicMock()
