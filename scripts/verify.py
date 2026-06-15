@@ -579,6 +579,42 @@ def verify_modal_klein_integration() -> None:
             "Runtime setup should show reader token as configured without exposing the value",
         )
 
+    # Test: reader-brain runtime status exposes actionable health details without leaking tokens
+    with patch.object(app, "LLAMA_CPP_BASE_URL", "https://reader.example/v1"), patch.object(app, "LLAMA_CPP_TOKEN", "reader-secret"):
+        http_error = urllib.error.HTTPError(
+            "https://reader.example/v1/models",
+            401,
+            "Unauthorized",
+            {},
+            None,
+        )
+        http_error.fp = MagicMock()
+        http_error.fp.read.return_value = b'{"detail":"Unauthorized"}'
+        with patch("urllib.request.urlopen", side_effect=http_error) as urlopen_mock:
+            status = app._runtime_status_core()
+            reader_status = status["reader_brain"]
+            health_request = urlopen_mock.call_args.args[0]
+            assert_true(
+                health_request.headers.get("Authorization") == "Bearer reader-secret",
+                "Reader-brain health checks should send Bearer token when configured",
+            )
+            assert_true(
+                "HTTPError status=401" in reader_status["warning"],
+                "Reader-brain runtime warning should include HTTP status details",
+            )
+            assert_true(
+                "Unauthorized" in reader_status["warning"],
+                "Reader-brain runtime warning should include response body details",
+            )
+            assert_true(
+                "reader-secret" not in json.dumps(reader_status),
+                "Reader-brain runtime status should not expose token values",
+            )
+            assert_true(
+                reader_status["health_url"] == "https://reader.example/v1/models",
+                "Reader-brain runtime status should expose the health URL",
+            )
+
     # Test: runtime status includes Modal Klein path
     with patch.object(app, "KLEIN_MODAL_ENDPOINT", ""):
         status = app._runtime_status_core()

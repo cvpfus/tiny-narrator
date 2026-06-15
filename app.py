@@ -647,6 +647,7 @@ def _runtime_status_core() -> dict[str, Any]:
     llama_start = time.perf_counter()
     llama_status: dict[str, Any]
     if not LLAMA_CPP_BASE_URL:
+        _runtime_log("llama.cpp reader brain endpoint is not configured; using narration fallback")
         llama_status = {
             "available": False,
             "status": "fallback-ready",
@@ -657,15 +658,25 @@ def _runtime_status_core() -> dict[str, Any]:
             "elapsed_ms": _elapsed_ms(llama_start),
         }
     else:
+        models_url = f"{LLAMA_CPP_BASE_URL}/models"
         try:
+            _runtime_log(
+                "llama.cpp reader brain health check "
+                f"url={models_url} token={'configured' if LLAMA_CPP_TOKEN else 'not-set'} "
+                "timeout=1.5s"
+            )
             request = urllib.request.Request(
-                f"{LLAMA_CPP_BASE_URL}/models",
+                models_url,
                 headers=_llama_cpp_headers(),
                 method="GET",
             )
             with urllib.request.urlopen(request, timeout=1.5) as response:
                 payload = json.loads(response.read().decode("utf-8"))
             model_ids = [item.get("id", "") for item in payload.get("data", []) if isinstance(item, dict)]
+            _runtime_log(
+                "llama.cpp reader brain health response "
+                f"models={model_ids[:6]} expected={LLAMA_CPP_MODEL}"
+            )
             llama_status = {
                 "available": True,
                 "status": "online",
@@ -675,13 +686,16 @@ def _runtime_status_core() -> dict[str, Any]:
                 "elapsed_ms": _elapsed_ms(llama_start),
             }
         except (OSError, urllib.error.URLError, TimeoutError, ValueError, json.JSONDecodeError) as exc:
+            detail = _http_exception_detail(exc)
+            _runtime_log(f"llama.cpp reader brain health failed url={models_url} error={detail}")
             llama_status = {
                 "available": False,
                 "status": "fallback-ready",
                 "base_url": LLAMA_CPP_BASE_URL,
                 "model": LLAMA_CPP_MODEL,
                 "fallback": "rule-based local narration",
-                "warning": exc.__class__.__name__,
+                "health_url": models_url,
+                "warning": detail,
                 "elapsed_ms": _elapsed_ms(llama_start),
             }
 
