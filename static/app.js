@@ -438,12 +438,18 @@ async function narrate(index) {
       sourceText = description.alt_text;
     }
 
-    const result = await postJson("/api/reader-brain", {
-      node_type: node.type,
-      text: sourceText,
-      position: `item ${index + 1} of ${nodes.length}`,
-      mode: "narrate",
-    });
+    const result = node.type === "image"
+      ? await postJson("/api/reader-brain", {
+          node_type: node.type,
+          text: sourceText,
+          position: `item ${index + 1} of ${nodes.length}`,
+          mode: "narrate",
+        })
+      : {
+          runtime: "raw text",
+          narration: sourceText,
+          elapsed_ms: 0,
+        };
 
     if (serial !== requestSerial) return;
 

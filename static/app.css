@@ -349,6 +349,11 @@ img {
   filter: contrast(1.02) saturate(0.95);
 }
 
+#generatedThumbnail {
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+}
+
 figcaption {
   padding: 12px 16px 14px;
   color: var(--muted);
