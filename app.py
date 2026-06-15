@@ -322,7 +322,7 @@ def demo_script_core() -> dict[str, Any]:
             "method": "POST",
             "path": "/api/generate-article",
             "expect": "generated article draft with Klein thumbnail receipt",
-            "sample_body": {"topic": "accessible robotics for classrooms"},
+            "sample_body": {"topic": "deep sea bioluminescence"},
         },
     ]
     for check in api_checks:
