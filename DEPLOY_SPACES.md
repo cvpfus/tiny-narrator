@@ -115,6 +115,8 @@ llama-server \
 
 Modal scales the worker down when idle. The first request after scale-to-zero can be slow while the container and model start.
 
+The worker uses the prebuilt `ghcr.io/ggml-org/llama.cpp:server-cuda12` image, so Modal should pull a CUDA server image instead of compiling llama.cpp from source during deployment.
+
 ---
 
 ## Step 4 - Optional Live Image Generation

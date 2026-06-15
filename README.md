@@ -77,7 +77,7 @@ LLAMA_CPP_MODEL=narrator-brain
 LLAMA_CPP_TOKEN=your-random-token
 ```
 
-The Modal worker starts Nemotron with `--ctx-size 0`, `--reasoning off`, full GPU offload, and `--api-key` when `LLAMA_CPP_TOKEN` is configured. It scales down when idle, so the first request after a cold start can be slower.
+The Modal worker starts Nemotron with `--ctx-size 0`, `--reasoning off`, full GPU offload, and `--api-key` when `LLAMA_CPP_TOKEN` is configured. It uses the prebuilt `ghcr.io/ggml-org/llama.cpp:server-cuda12` image instead of compiling llama.cpp during deploy. It scales down when idle, so the first request after a cold start can be slower.
 
 ## Modal Klein Image Generation
 

@@ -33,18 +33,8 @@ def _secret_names() -> list[modal.Secret]:
 
 reader_brain_image = (
     modal.Image.from_registry(
-        "nvidia/cuda:12.4.1-devel-ubuntu22.04",
+        "ghcr.io/ggml-org/llama.cpp:server-cuda12",
         add_python="3.12",
-    )
-    .apt_install("git", "cmake", "build-essential", "curl", "ca-certificates")
-    .run_commands(
-        "git clone --depth 1 https://github.com/ggml-org/llama.cpp.git /tmp/llama.cpp",
-        "cmake -S /tmp/llama.cpp -B /tmp/llama.cpp/build "
-        "-DGGML_CUDA=ON -DCMAKE_BUILD_TYPE=Release",
-        "cmake --build /tmp/llama.cpp/build --target llama-server -j$(nproc)",
-        "cp /tmp/llama.cpp/build/bin/llama-server /usr/local/bin/llama-server",
-        "chmod +x /usr/local/bin/llama-server",
-        "rm -rf /tmp/llama.cpp",
     )
     .env(
         {
