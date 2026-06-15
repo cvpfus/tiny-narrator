@@ -218,7 +218,7 @@ def runtime_setup_core() -> dict[str, Any]:
                 "command": (
                     "llama-server -hf nvidia/NVIDIA-Nemotron-3-Nano-4B-GGUF:Q4_K_M "
                     "--alias narrator-brain --port 8080 --host 0.0.0.0 "
-                    "--ctx-size 0 --reasoning off --n-gpu-layers 999"
+                    "--ctx-size 4096 --parallel 1 --reasoning off --n-gpu-layers 999"
                 ),
                 "modal_command": "modal deploy modal_workers/reader_brain.py",
                 "env": {

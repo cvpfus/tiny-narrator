@@ -71,7 +71,7 @@ reader_brain_image = (
 
 @app.function(
     image=reader_brain_image,
-    gpu=os.getenv("READER_BRAIN_MODAL_GPU", "T4"),
+    gpu="T4",
     volumes={CACHE_DIR: model_cache},
     secrets=_secret_names(),
     timeout=900,
@@ -81,10 +81,6 @@ reader_brain_image = (
 @modal.concurrent(max_inputs=20)
 @modal.web_server(SERVER_PORT, startup_timeout=600)
 def reader_brain_server():
-    model_ref = os.getenv("READER_BRAIN_MODEL_REF", MODEL_REF)
-    model_alias = os.getenv("READER_BRAIN_MODEL_ALIAS", MODEL_ALIAS)
-    context_size = os.getenv("READER_BRAIN_CTX_SIZE", "0")
-    gpu_layers = os.getenv("READER_BRAIN_GPU_LAYERS", "999")
     api_key = os.getenv("LLAMA_CPP_TOKEN", "")
 
     command = [
@@ -94,15 +90,17 @@ def reader_brain_server():
         "--port",
         str(SERVER_PORT),
         "-hf",
-        model_ref,
+        MODEL_REF,
         "--alias",
-        model_alias,
+        MODEL_ALIAS,
         "--ctx-size",
-        context_size,
+        "4096",
+        "--parallel",
+        "1",
         "--reasoning",
         "off",
         "--n-gpu-layers",
-        gpu_layers,
+        "999",
     ]
     if api_key:
         command.extend(["--api-key", api_key])

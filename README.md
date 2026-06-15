@@ -49,7 +49,7 @@ Copy-Item .env.example .env
 Start the llama.cpp reader-brain server locally:
 
 ```powershell
-llama-server -hf nvidia/NVIDIA-Nemotron-3-Nano-4B-GGUF:Q4_K_M --alias narrator-brain --port 8080 --host 0.0.0.0 --ctx-size 0 --reasoning off --n-gpu-layers 999
+llama-server -hf nvidia/NVIDIA-Nemotron-3-Nano-4B-GGUF:Q4_K_M --alias narrator-brain --port 8080 --host 0.0.0.0 --ctx-size 4096 --parallel 1 --reasoning off --n-gpu-layers 999
 ```
 
 Start the app:
@@ -77,7 +77,7 @@ LLAMA_CPP_MODEL=narrator-brain
 LLAMA_CPP_TOKEN=your-random-token
 ```
 
-The Modal worker starts Nemotron with `--ctx-size 0`, `--reasoning off`, full GPU offload, and `--api-key` when `LLAMA_CPP_TOKEN` is configured. It uses the prebuilt `ghcr.io/ggml-org/llama.cpp:server-cuda12` image instead of compiling llama.cpp during deploy, clears that image's entrypoint so Modal can start its Python runner, and allows up to 10 minutes for the first GGUF download/load. It scales down when idle, so the first request after a cold start can be slower.
+The Modal worker starts Nemotron on T4 with `--ctx-size 4096`, `--parallel 1`, `--reasoning off`, full GPU offload, and `--api-key` when `LLAMA_CPP_TOKEN` is configured. It uses the prebuilt `ghcr.io/ggml-org/llama.cpp:server-cuda12` image instead of compiling llama.cpp during deploy, clears that image's entrypoint so Modal can start its Python runner, and allows up to 10 minutes for the first GGUF download/load. It scales down when idle, so the first request after a cold start can be slower.
 
 ## Modal Klein Image Generation
 

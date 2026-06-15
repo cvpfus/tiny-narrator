@@ -107,7 +107,8 @@ llama-server \
   --alias narrator-brain \
   --host 0.0.0.0 \
   --port 8080 \
-  --ctx-size 0 \
+  --ctx-size 4096 \
+  --parallel 1 \
   --reasoning off \
   --n-gpu-layers 999 \
   --api-key your-random-token
@@ -248,7 +249,7 @@ curl https://<YOUR_USERNAME>-tiny-narrator.hf.space/api/submission-readiness
 ### Modal reader-brain cold starts are slow
 
 - Keep `scaledown_window` higher in `modal_workers/reader_brain.py` if you want the container to stay warm longer.
-- Use a faster GPU by setting `READER_BRAIN_MODAL_GPU` before deploying.
+- Use a larger GPU by editing `gpu="T4"` in `modal_workers/reader_brain.py` before deploying.
 - Keep `min_containers=0` for cheapest operation; use a warm container only if you accept continuous cost.
 
 ### External services unreachable
